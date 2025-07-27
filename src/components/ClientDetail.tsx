@@ -28,6 +28,12 @@ const ClientDetail: React.FC = () => {
   const [installmentToMark, setInstallmentToMark] = useState<ServiceInstallment | null>(null);
   const [showDeleteServiceModal, setShowDeleteServiceModal] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState<{ id: string; description: string } | null>(null);
+  const [customInstallments, setCustomInstallments] = useState(false);
+  const [installmentsData, setInstallmentsData] = useState<Array<{
+    installmentNumber: number;
+    amount: number;
+    dueDate: string;
+  }>>([]);
   const [serviceFormData, setServiceFormData] = useState<CreateServiceData>({
     companyId: '',
     clientId: '',
@@ -52,6 +58,8 @@ const ClientDetail: React.FC = () => {
       serviceDate: '',
       installments: 1
     });
+    setCustomInstallments(false);
+    setInstallmentsData([]);
   }, [client, clientId]);
 
   const fetchClientData = useCallback(async () => {
@@ -92,6 +100,13 @@ const ClientDetail: React.FC = () => {
       resetServiceForm();
     }
   }, [client, resetServiceForm]);
+
+  // Gerar parcelas padrão quando os campos mudarem
+  useEffect(() => {
+    if (!customInstallments && serviceFormData.firstPaymentDate && serviceFormData.amount && serviceFormData.installments) {
+      generateDefaultInstallments();
+    }
+  }, [serviceFormData.firstPaymentDate, serviceFormData.amount, serviceFormData.installments, customInstallments]);
 
   const fetchClientServices = async () => {
     try {
@@ -189,6 +204,75 @@ const ClientDetail: React.FC = () => {
     setShowDeleteServiceModal(false);
   };
 
+  // Funções para gerenciar parcelas personalizadas
+  const generateDefaultInstallments = () => {
+    if (!serviceFormData.firstPaymentDate || !serviceFormData.amount || !serviceFormData.installments) return;
+
+    const installments = [];
+    const installmentAmount = serviceFormData.amount / serviceFormData.installments;
+    const firstDate = new Date(serviceFormData.firstPaymentDate);
+
+    for (let i = 0; i < serviceFormData.installments; i++) {
+      const dueDate = new Date(firstDate);
+      dueDate.setMonth(dueDate.getMonth() + i);
+      
+      installments.push({
+        installmentNumber: i + 1,
+        amount: installmentAmount,
+        dueDate: dueDate.toISOString().split('T')[0]
+      });
+    }
+
+    setInstallmentsData(installments);
+  };
+
+  const updateInstallment = (index: number, field: 'amount' | 'dueDate', value: string | number) => {
+    const updatedInstallments = [...installmentsData];
+    updatedInstallments[index] = {
+      ...updatedInstallments[index],
+      [field]: field === 'amount' ? Number(value) : value
+    };
+    setInstallmentsData(updatedInstallments);
+  };
+
+  const addInstallment = () => {
+    const newInstallment = {
+      installmentNumber: installmentsData.length + 1,
+      amount: 0,
+      dueDate: ''
+    };
+    setInstallmentsData([...installmentsData, newInstallment]);
+  };
+
+  const removeInstallment = (index: number) => {
+    const updatedInstallments = installmentsData.filter((_, i) => i !== index);
+    // Renumerar as parcelas
+    const renumberedInstallments = updatedInstallments.map((installment, i) => ({
+      ...installment,
+      installmentNumber: i + 1
+    }));
+    setInstallmentsData(renumberedInstallments);
+  };
+
+  const validateInstallments = () => {
+    if (!customInstallments) return true;
+    
+    const totalAmount = installmentsData.reduce((sum, installment) => sum + installment.amount, 0);
+    const hasEmptyFields = installmentsData.some(installment => !installment.dueDate || installment.amount <= 0);
+    
+    if (hasEmptyFields) {
+      showError('Por favor, preencha todas as datas e valores das parcelas.');
+      return false;
+    }
+    
+    if (Math.abs(totalAmount - serviceFormData.amount) > 0.01) {
+      showError(`O total das parcelas (${formatCurrency(totalAmount)}) deve ser igual ao valor do serviço (${formatCurrency(serviceFormData.amount)}).`);
+      return false;
+    }
+    
+    return true;
+  };
+
   const toggleServiceExpansion = (serviceId: string) => {
     setExpandedServices(prev => {
       const newSet = new Set(prev);
@@ -209,16 +293,31 @@ const ClientDetail: React.FC = () => {
       return;
     }
 
+    // Validar parcelas personalizadas se estiver ativado
+    if (!validateInstallments()) {
+      return;
+    }
+
     try {
-      await authService.createService(serviceFormData);
-      
+      // Preparar dados para envio
+      const serviceData = {
+        ...serviceFormData,
+        // Incluir parcelas personalizadas se estiver ativado
+        ...(customInstallments && installmentsData.length > 0 && {
+          customInstallments: installmentsData
+        })
+      };
+
+      await authService.createService(serviceData);
+      showSuccess('Serviço criado com sucesso!');
       setShowServiceForm(false);
+      setCustomInstallments(false);
+      setInstallmentsData([]);
       resetServiceForm();
-      await fetchClientServices();
-      showSuccess('Serviço cadastrado com sucesso!');
+      fetchClientServices();
     } catch (error) {
-      console.error('Erro ao salvar serviço:', error);
-      showError('Erro ao salvar serviço. Tente novamente.');
+      console.error('Erro ao criar serviço:', error);
+      showError('Erro ao criar serviço. Tente novamente.');
     }
   };
 
@@ -521,7 +620,7 @@ const ClientDetail: React.FC = () => {
         {/* Formulário de Novo Serviço - Modal */}
         {showServiceForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-card border border-border rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="bg-card border border-border rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold">Novo Serviço</h2>
                 <Button
@@ -612,8 +711,122 @@ const ClientDetail: React.FC = () => {
                       value={serviceFormData.installments}
                       onChange={(e) => setServiceFormData(prev => ({ ...prev, installments: parseInt(e.target.value) || 1 }))}
                       required
+                      disabled={customInstallments}
                     />
                   </div>
+                </div>
+
+                {/* Seção de Parcelas Personalizadas */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-medium">Configuração de Parcelas</Label>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        type="button"
+                        variant={customInstallments ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCustomInstallments(!customInstallments)}
+                      >
+                        {!customInstallments ? "Personalizar parecelas" : "Parcelas Padrão"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {customInstallments ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">
+                          Configure as datas e valores das parcelas manualmente
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={addInstallment}
+                        >
+                          + Adicionar Parcela
+                        </Button>
+                      </div>
+
+                      {installmentsData.length > 0 && (
+                        <div className="space-y-3">
+                          {installmentsData.map((installment, index) => (
+                            <div key={index} className="flex items-center space-x-3 p-3 border rounded-lg">
+                              <div className="flex-shrink-0">
+                                <span className="text-sm font-medium text-muted-foreground">
+                                  {installment.installmentNumber}ª
+                                </span>
+                              </div>
+                              
+                              <div className="flex-1">
+                                <Label className="text-xs text-muted-foreground">Valor</Label>
+                                <CurrencyInput
+                                  value={installment.amount}
+                                  onChange={(value) => updateInstallment(index, 'amount', value || 0)}
+                                  placeholder="0,00"
+                                  className="w-full"
+                                />
+                              </div>
+                              
+                              <div className="flex-1">
+                                <Label className="text-xs text-muted-foreground">Data de Vencimento</Label>
+                                <DateInput
+                                  value={installment.dueDate}
+                                  onChange={(value) => updateInstallment(index, 'dueDate', value)}
+                                  placeholder="dd/mm/aaaa"
+                                  outputFormat="iso"
+                                  className="w-full"
+                                />
+                              </div>
+                              
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeInstallment(index)}
+                                className="text-red-600 hover:text-red-700"
+                                disabled={installmentsData.length === 1}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                          
+                          <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                            <span className="text-sm font-medium">Total das Parcelas:</span>
+                            <span className="text-sm font-bold">
+                              {formatCurrency(installmentsData.reduce((sum, installment) => sum + installment.amount, 0))}
+                            </span>
+                          </div>
+                          
+                          {Math.abs(installmentsData.reduce((sum, installment) => sum + installment.amount, 0) - serviceFormData.amount) > 0.01 && (
+                            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                              <p className="text-sm text-yellow-800">
+                                ⚠️ O total das parcelas deve ser igual ao valor do serviço ({formatCurrency(serviceFormData.amount)})
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">
+                        As parcelas serão geradas automaticamente com valores iguais e vencimentos mensais a partir da data do primeiro pagamento.
+                      </p>
+                      {installmentsData.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {installmentsData.map((installment, index) => (
+                            <div key={index} className="flex justify-between items-center text-sm">
+                              <span>{installment.installmentNumber}ª parcela</span>
+                              <span className="font-medium">{formatCurrency(installment.amount)}</span>
+                              <span className="text-muted-foreground">{formatDate(installment.dueDate)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
