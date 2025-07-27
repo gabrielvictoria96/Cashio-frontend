@@ -113,28 +113,33 @@ const ClientDetail: React.FC = () => {
       const servicesResponse = await authService.getServices();
       const allServices = servicesResponse.services || [];
       const clientServices = allServices.filter(service => service.clientId === clientId);
-      
       setClientServices(clientServices);
       
-      // Buscar parcelas para cada serviço
-      for (const service of clientServices) {
-        await fetchServiceInstallments(service.id!);
-      }
+      // Buscar parcelas apenas do ano atual
+      await fetchServiceInstallmentsByYear(new Date().getFullYear());
     } catch (error) {
       console.error('Erro ao buscar serviços do cliente:', error);
       setClientServices([]);
     }
   };
 
-  const fetchServiceInstallments = async (serviceId: string) => {
+  const fetchServiceInstallmentsByYear = async (year: number) => {
     try {
-      const response = await authService.getServiceInstallments(serviceId);
-      setServiceInstallments(prev => ({
-        ...prev,
-        [serviceId]: response.installments || []
-      }));
+      const response = await authService.getServiceInstallmentsByYear(year);
+      // Organizar parcelas por serviceId para manter compatibilidade
+      const installmentsByService: { [serviceId: string]: ServiceInstallment[] } = {};
+      
+      response.installments.forEach(installment => {
+        if (!installmentsByService[installment.serviceId]) {
+          installmentsByService[installment.serviceId] = [];
+        }
+        installmentsByService[installment.serviceId].push(installment);
+      });
+      
+      setServiceInstallments(installmentsByService);
     } catch (error) {
-      console.error('Erro ao buscar parcelas do serviço:', error);
+      console.error('Erro ao buscar parcelas do ano:', error);
+      setServiceInstallments({});
     }
   };
 

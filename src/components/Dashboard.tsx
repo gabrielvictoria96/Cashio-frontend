@@ -48,6 +48,13 @@ const Dashboard: React.FC = () => {
     // Isso garante que os componentes sejam re-renderizados quando o ano mudar
   }, [selectedYear]);
 
+  // Recarregar parcelas quando o ano mudar
+  useEffect(() => {
+    if (services.length > 0) {
+      fetchServiceInstallmentsByYear(selectedYear);
+    }
+  }, [selectedYear, services.length]);
+
   // Resetar filtro quando mês ou ano mudar
   useEffect(() => {
     setPaymentStatusFilter('all');
@@ -80,25 +87,31 @@ const Dashboard: React.FC = () => {
       console.log('Serviços carregados:', response);
       setServices(response.services || []);
       
-      // Buscar parcelas para cada serviço
-      for (const service of response.services || []) {
-        await fetchServiceInstallments(service.id!);
-      }
+      // Buscar parcelas apenas do ano selecionado
+      await fetchServiceInstallmentsByYear(selectedYear);
     } catch (error) {
       console.error('Erro ao buscar serviços:', error);
       setServices([]);
     }
   };
 
-  const fetchServiceInstallments = async (serviceId: string) => {
+  const fetchServiceInstallmentsByYear = async (year: number) => {
     try {
-      const response = await authService.getServiceInstallments(serviceId);
-      setInstallments(prev => ({
-        ...prev,
-        [serviceId]: response.installments || []
-      }));
+      const response = await authService.getServiceInstallmentsByYear(year);
+      // Organizar parcelas por serviceId para manter compatibilidade
+      const installmentsByService: { [serviceId: string]: ServiceInstallment[] } = {};
+      
+      response.installments.forEach(installment => {
+        if (!installmentsByService[installment.serviceId]) {
+          installmentsByService[installment.serviceId] = [];
+        }
+        installmentsByService[installment.serviceId].push(installment);
+      });
+      
+      setInstallments(installmentsByService);
     } catch (error) {
-      console.error('Erro ao buscar parcelas do serviço:', error);
+      console.error('Erro ao buscar parcelas do ano:', error);
+      setInstallments({});
     }
   };
 

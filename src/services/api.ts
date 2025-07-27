@@ -265,7 +265,12 @@ export const authService = {
 
   // Buscar parcelas de um serviço
   async getServiceInstallments(serviceId: string): Promise<{ installments: ServiceInstallment[] }> {
-    const response = await api.get(`/services/${serviceId}/installments`);
+    const response = await api.get(`/service-installments/service/${serviceId}`);
+    return response.data;
+  },
+
+  async getServiceInstallmentsByYear(year: number): Promise<{ installments: ServiceInstallment[] }> {
+    const response = await api.get(`/service-installments/year/${year}`);
     return response.data;
   },
 
