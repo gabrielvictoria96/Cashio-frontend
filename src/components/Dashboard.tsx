@@ -220,11 +220,38 @@ const Dashboard: React.FC = () => {
     };
   };
 
+  // Função separada para os dados dos cards de estatísticas (não afetada pelos filtros)
+  const getSelectedMonthStats = () => {
+    // Converter objeto installments em array plano
+    const allInstallments = Object.values(installments).flat();
+    
+    const monthInstallments = allInstallments.filter(installment => {
+      const dueDate = new Date(installment.dueDate);
+      return dueDate.getMonth() === selectedMonth && dueDate.getFullYear() === selectedYear;
+    });
+
+    const totalRevenue = monthInstallments.reduce((sum, installment) => sum + installment.amount, 0);
+    const paidAmount = monthInstallments
+      .filter(installment => installment.paidAt)
+      .reduce((sum, installment) => sum + installment.amount, 0);
+    const pendingAmount = totalRevenue - paidAmount;
+
+    return {
+      totalRevenue,
+      paidAmount,
+      pendingAmount,
+      totalInstallments: monthInstallments.length,
+      paidInstallments: monthInstallments.filter(installment => installment.paidAt).length,
+      pendingInstallments: monthInstallments.filter(installment => !installment.paidAt).length
+    };
+  };
+
   const totalRevenue = services.reduce((sum, service) => sum + service.amount, 0);
   const allInstallments = Object.values(installments).flat();
   const totalPaid = allInstallments.filter(installment => installment.paidAt).reduce((sum, installment) => sum + installment.amount, 0);
 
   const selectedMonthData = getSelectedMonthData();
+  const selectedMonthStats = getSelectedMonthStats();
   const monthlyData = getMonthlyData();
 
   const formatDate = (dateString: string) => {
@@ -417,10 +444,10 @@ const Dashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                  {formatCurrency(selectedMonthData.totalRevenue)}
+                  {formatCurrency(selectedMonthStats.totalRevenue)}
                 </div>
                 <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                  {selectedMonthData.installments.length} pagamentos
+                  {selectedMonthStats.totalInstallments} pagamentos
                 </p>
               </CardContent>
             </Card>
@@ -432,10 +459,10 @@ const Dashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-700 dark:text-green-300">
-                  {formatCurrency(selectedMonthData.paidAmount)}
+                  {formatCurrency(selectedMonthStats.paidAmount)}
                 </div>
                 <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                  {selectedMonthData.installments.filter(i => i.paidAt).length} pagos
+                  {selectedMonthStats.paidInstallments} pagos
                 </p>
               </CardContent>
             </Card>
@@ -447,10 +474,10 @@ const Dashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-orange-700 dark:text-orange-300">
-                  {formatCurrency(selectedMonthData.pendingAmount)}
+                  {formatCurrency(selectedMonthStats.pendingAmount)}
                 </div>
                 <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                  {selectedMonthData.installments.filter(i => !i.paidAt).length} pendentes
+                  {selectedMonthStats.pendingInstallments} pendentes
                 </p>
               </CardContent>
             </Card>
@@ -462,12 +489,12 @@ const Dashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
-                  {selectedMonthData.totalRevenue > 0 
-                    ? Math.round((selectedMonthData.paidAmount / selectedMonthData.totalRevenue) * 100)
+                  {selectedMonthStats.totalRevenue > 0 
+                    ? Math.round((selectedMonthStats.paidAmount / selectedMonthStats.totalRevenue) * 100)
                     : 0}%
                 </div>
                 <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
-                  {selectedMonthData.paidAmount > selectedMonthData.pendingAmount ? (
+                  {selectedMonthStats.paidAmount > selectedMonthStats.pendingAmount ? (
                     <span className="flex items-center">
                       <TrendingUp className="h-3 w-3 mr-1" />
                       Crescendo
@@ -493,10 +520,10 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <Badge variant="outline" className="text-green-600 border-green-600">
-                    {formatCurrency(selectedMonthData.paidAmount)} Pago
+                    {formatCurrency(selectedMonthStats.paidAmount)} Pago
                   </Badge>
                   <Badge variant="outline" className="text-yellow-600 border-yellow-600">
-                    {formatCurrency(selectedMonthData.installments.filter(i => i.id && getPaymentStatus(i) === 'pending').reduce((sum, i) => sum + i.amount, 0))} Pendente
+                    {formatCurrency(selectedMonthStats.pendingAmount)} Pendente
                   </Badge>
                   <Badge variant="outline" className="text-red-600 border-red-600">
                     {formatCurrency(selectedMonthData.installments.filter(i => i.id && getPaymentStatus(i) === 'overdue').reduce((sum, i) => sum + i.amount, 0))} Vencido
