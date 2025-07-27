@@ -31,6 +31,12 @@ const Services: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [servicesPerPage] = useState(9); // 3 linhas x 3 colunas
+  const [customInstallments, setCustomInstallments] = useState(false);
+  const [installmentsData, setInstallmentsData] = useState<Array<{
+    installmentNumber: number;
+    amount: number;
+    dueDate: string;
+  }>>([]);
   const [formData, setFormData] = useState<CreateServiceData>({
     companyId: '',
     clientId: '',
@@ -42,10 +48,18 @@ const Services: React.FC = () => {
     serviceDate: '',
     installments: 1
   });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Gerar parcelas padrão quando os campos mudarem
+  useEffect(() => {
+    if (!customInstallments && formData.firstPaymentDate && formData.amount && formData.installments) {
+      generateDefaultInstallments();
+    }
+  }, [formData.firstPaymentDate, formData.amount, formData.installments, customInstallments]);
 
   const fetchData = async () => {
     try {
@@ -122,25 +136,42 @@ const Services: React.FC = () => {
       return;
     }
 
+    // Validar parcelas personalizadas se estiver ativado
+    if (!validateInstallments()) {
+      return;
+    }
+
     try {
-      console.log('Enviando dados do serviço:', formData);
+      setSubmitting(true);
+      
+      // Preparar dados para envio
+      const serviceData = {
+        ...formData,
+        // Incluir parcelas personalizadas se estiver ativado
+        ...(customInstallments && installmentsData.length > 0 && {
+          customInstallments: installmentsData
+        })
+      };
       
       if (editingService) {
-        const response = await authService.updateService(editingService.id!, formData);
-        console.log('Serviço atualizado:', response);
+        await authService.updateService(editingService.id!, serviceData);
+        showSuccess('Serviço atualizado com sucesso!');
       } else {
-        const response = await authService.createService(formData);
-        console.log('Serviço criado:', response);
+        await authService.createService(serviceData);
+        showSuccess('Serviço criado com sucesso!');
       }
       
       setShowForm(false);
       setEditingService(null);
+      setCustomInstallments(false);
+      setInstallmentsData([]);
       resetForm();
-      await fetchServices();
-      showSuccess('Serviço salvo com sucesso!');
+      fetchServices();
     } catch (error) {
       console.error('Erro ao salvar serviço:', error);
       showError('Erro ao salvar serviço. Tente novamente.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -187,6 +218,75 @@ const Services: React.FC = () => {
   const handleCancelDelete = () => {
     setServiceToDelete(null);
     setShowDeleteServiceModal(false);
+  };
+
+  // Funções para gerenciar parcelas personalizadas
+  const generateDefaultInstallments = () => {
+    if (!formData.firstPaymentDate || !formData.amount || !formData.installments) return;
+
+    const installments = [];
+    const installmentAmount = formData.amount / formData.installments;
+    const firstDate = new Date(formData.firstPaymentDate);
+
+    for (let i = 0; i < formData.installments; i++) {
+      const dueDate = new Date(firstDate);
+      dueDate.setMonth(dueDate.getMonth() + i);
+      
+      installments.push({
+        installmentNumber: i + 1,
+        amount: installmentAmount,
+        dueDate: dueDate.toISOString().split('T')[0]
+      });
+    }
+
+    setInstallmentsData(installments);
+  };
+
+  const updateInstallment = (index: number, field: 'amount' | 'dueDate', value: string | number) => {
+    const updatedInstallments = [...installmentsData];
+    updatedInstallments[index] = {
+      ...updatedInstallments[index],
+      [field]: field === 'amount' ? Number(value) : value
+    };
+    setInstallmentsData(updatedInstallments);
+  };
+
+  const addInstallment = () => {
+    const newInstallment = {
+      installmentNumber: installmentsData.length + 1,
+      amount: 0,
+      dueDate: ''
+    };
+    setInstallmentsData([...installmentsData, newInstallment]);
+  };
+
+  const removeInstallment = (index: number) => {
+    const updatedInstallments = installmentsData.filter((_, i) => i !== index);
+    // Renumerar as parcelas
+    const renumberedInstallments = updatedInstallments.map((installment, i) => ({
+      ...installment,
+      installmentNumber: i + 1
+    }));
+    setInstallmentsData(renumberedInstallments);
+  };
+
+  const validateInstallments = () => {
+    if (!customInstallments) return true;
+    
+    const totalAmount = installmentsData.reduce((sum, installment) => sum + installment.amount, 0);
+    const hasEmptyFields = installmentsData.some(installment => !installment.dueDate || installment.amount <= 0);
+    
+    if (hasEmptyFields) {
+      showError('Por favor, preencha todas as datas e valores das parcelas.');
+      return false;
+    }
+    
+    if (Math.abs(totalAmount - formData.amount) > 0.01) {
+      showError(`O total das parcelas (${formatCurrency(totalAmount)}) deve ser igual ao valor do serviço (${formatCurrency(formData.amount)}).`);
+      return false;
+    }
+    
+    return true;
   };
 
   const getClientName = (clientId: string) => {
@@ -618,8 +718,122 @@ const Services: React.FC = () => {
                         value={formData.installments}
                         onChange={(e) => setFormData(prev => ({ ...prev, installments: parseInt(e.target.value) || 1 }))}
                         required
+                        disabled={customInstallments}
                       />
                     </div>
+                  </div>
+
+                  {/* Seção de Parcelas Personalizadas */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-medium">Configuração de Parcelas</Label>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          type="button"
+                          variant={customInstallments ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCustomInstallments(!customInstallments)}
+                        >
+                          {!customInstallments ? "Personalizar parcelas" : "Parcelas Padrão"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {customInstallments ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-muted-foreground">
+                            Configure as datas e valores das parcelas manualmente
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={addInstallment}
+                          >
+                            + Adicionar Parcela
+                          </Button>
+                        </div>
+
+                        {installmentsData.length > 0 && (
+                          <div className="space-y-3">
+                            {installmentsData.map((installment, index) => (
+                              <div key={index} className="flex items-center space-x-3 p-3 border rounded-lg">
+                                <div className="flex-shrink-0">
+                                  <span className="text-sm font-medium text-muted-foreground">
+                                    {installment.installmentNumber}ª
+                                  </span>
+                                </div>
+                                
+                                <div className="flex-1">
+                                  <Label className="text-xs text-muted-foreground">Valor</Label>
+                                  <CurrencyInput
+                                    value={installment.amount}
+                                    onChange={(value) => updateInstallment(index, 'amount', value || 0)}
+                                    placeholder="0,00"
+                                    className="w-full"
+                                  />
+                                </div>
+                                
+                                <div className="flex-1">
+                                  <Label className="text-xs text-muted-foreground">Data de Vencimento</Label>
+                                  <DateInput
+                                    value={installment.dueDate}
+                                    onChange={(value) => updateInstallment(index, 'dueDate', value)}
+                                    placeholder="dd/mm/aaaa"
+                                    outputFormat="iso"
+                                    className="w-full"
+                                  />
+                                </div>
+                                
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeInstallment(index)}
+                                  className="text-red-600 hover:text-red-700"
+                                  disabled={installmentsData.length === 1}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            
+                            <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                              <span className="text-sm font-medium">Total das Parcelas:</span>
+                              <span className="text-sm font-bold">
+                                {formatCurrency(installmentsData.reduce((sum, installment) => sum + installment.amount, 0))}
+                              </span>
+                            </div>
+                            
+                            {Math.abs(installmentsData.reduce((sum, installment) => sum + installment.amount, 0) - formData.amount) > 0.01 && (
+                              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <p className="text-sm text-yellow-800">
+                                  ⚠️ O total das parcelas deve ser igual ao valor do serviço ({formatCurrency(formData.amount)})
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-muted rounded-lg">
+                        <p className="text-sm text-muted-foreground">
+                          As parcelas serão geradas automaticamente com valores iguais e vencimentos mensais a partir da data do primeiro pagamento.
+                        </p>
+                        {installmentsData.length > 0 && (
+                          <div className="mt-3 space-y-2">
+                            {installmentsData.map((installment, index) => (
+                              <div key={index} className="flex justify-between items-center text-sm">
+                                <span>{installment.installmentNumber}ª parcela</span>
+                                <span className="font-medium">{formatCurrency(installment.amount)}</span>
+                                <span className="text-muted-foreground">{formatDate(installment.dueDate)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -634,8 +848,9 @@ const Services: React.FC = () => {
                   </div>
 
                   <div className="flex space-x-2 pt-4">
-                    <Button type="submit" className="flex-1">
+                    <Button type="submit" className="flex-1" disabled={submitting}>
                       {editingService ? 'Atualizar Serviço' : 'Cadastrar Serviço'}
+                      {submitting && <span className="ml-2">...</span>}
                     </Button>
                     <Button type="button" variant="outline" onClick={handleCancel}>
                       Cancelar

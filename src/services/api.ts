@@ -97,8 +97,15 @@ export interface Service {
   firstPaymentDate: string;
   serviceDate: string;
   installments: number;
+  customInstallments?: CustomInstallment[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface CustomInstallment {
+  installmentNumber: number;
+  amount: number;
+  dueDate: string;
 }
 
 export interface ServiceInstallment {
@@ -123,6 +130,7 @@ export interface CreateServiceData {
   firstPaymentDate: string;
   serviceDate: string;
   installments: number;
+  customInstallments?: CustomInstallment[];
 }
 
 export interface SubscriptionPlan {
