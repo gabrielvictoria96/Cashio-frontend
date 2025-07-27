@@ -8,6 +8,7 @@ import { ArrowLeft, Users, Plus, Edit, Trash2, Search } from 'lucide-react';
 import Layout from './Layout';
 import { authService, type Client, type CreateClientData, type Company } from '../services/api';
 import { showError, showSuccess } from '../utils/notifications';
+import ConfirmDialog from './ui/confirm-dialog';
 
 const Clients: React.FC = () => {
   const navigate = useNavigate();
@@ -23,6 +24,8 @@ const Clients: React.FC = () => {
     phoneNumber: ''
   });
   const [searchTerm, setSearchTerm] = useState('');
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     const fetchCompanyAndClients = async () => {
@@ -108,16 +111,29 @@ const Clients: React.FC = () => {
   const handleDelete = async (clientId: string, clientName: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Previne que o clique propague para o card
     
-    if (window.confirm(`Tem certeza que deseja excluir o cliente "${clientName}"?\n\n⚠️ ATENÇÃO: Esta ação também excluirá todos os serviços e parcelas associados a este cliente.`)) {
-      try {
-        await authService.deleteClient(clientId);
-        fetchClients(); // Recarrega a lista de clientes
-        showSuccess(`Cliente "${clientName}" excluído com sucesso!\n\nTodos os serviços e parcelas associados também foram removidos.`);
-      } catch (error) {
-        console.error('Erro ao excluir cliente:', error);
-        showError('Erro ao excluir cliente. Tente novamente.');
-      }
+    setClientToDelete({ id: clientId, name: clientName });
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!clientToDelete) return;
+
+    try {
+      await authService.deleteClient(clientToDelete.id);
+      fetchClients(); // Recarrega a lista de clientes
+      showSuccess(`Cliente "${clientToDelete.name}" excluído com sucesso!\n\nTodos os serviços e parcelas associados também foram removidos.`);
+    } catch (error) {
+      console.error('Erro ao excluir cliente:', error);
+      showError('Erro ao excluir cliente. Tente novamente.');
+    } finally {
+      setClientToDelete(null);
+      setShowConfirmDialog(false);
     }
+  };
+
+  const handleCancelDelete = () => {
+    setClientToDelete(null);
+    setShowConfirmDialog(false);
   };
 
   const resetForm = () => {
@@ -351,6 +367,17 @@ const Clients: React.FC = () => {
           </Card>
         )}
       </div>
+      <ConfirmDialog
+        open={showConfirmDialog}
+        onOpenChange={setShowConfirmDialog}
+        title="Excluir Cliente"
+        description={`Tem certeza que deseja excluir o cliente "${clientToDelete?.name}"?\n\n⚠️ ATENÇÃO: Esta ação também excluirá todos os serviços e parcelas associados a este cliente.`}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </Layout>
   );
 };

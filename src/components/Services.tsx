@@ -14,6 +14,7 @@ import Layout from './Layout';
 import { authService, type Service, type CreateServiceData, type Client, type Company, PaymentMethodType, type ServiceInstallment } from '../services/api';
 import { formatCurrency } from '../utils/currency';
 import { showError, showSuccess } from '../utils/notifications';
+import ConfirmDialog from './ui/confirm-dialog';
 
 const Services: React.FC = () => {
   const { user } = useAuth();
@@ -25,6 +26,8 @@ const Services: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [serviceInstallments, setServiceInstallments] = useState<{ [serviceId: string]: ServiceInstallment[] }>({});
+  const [showDeleteServiceModal, setShowDeleteServiceModal] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
   const [formData, setFormData] = useState<CreateServiceData>({
     companyId: '',
     clientId: '',
@@ -155,16 +158,32 @@ const Services: React.FC = () => {
   };
 
   const handleDelete = async (serviceId: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este serviço?')) {
-      try {
-        await authService.deleteService(serviceId);
-        fetchServices();
-        showSuccess('Serviço excluído com sucesso!');
-      } catch (error) {
-        console.error('Erro ao excluir serviço:', error);
-        showError('Erro ao excluir serviço. Tente novamente.');
-      }
+    const service = services.find(s => s.id === serviceId);
+    if (service) {
+      setServiceToDelete(service);
+      setShowDeleteServiceModal(true);
     }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!serviceToDelete) return;
+
+    try {
+      await authService.deleteService(serviceToDelete.id!);
+      fetchServices();
+      showSuccess('Serviço excluído com sucesso!');
+    } catch (error) {
+      console.error('Erro ao excluir serviço:', error);
+      showError('Erro ao excluir serviço. Tente novamente.');
+    } finally {
+      setServiceToDelete(null);
+      setShowDeleteServiceModal(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setServiceToDelete(null);
+    setShowDeleteServiceModal(false);
   };
 
   const resetForm = () => {
@@ -501,6 +520,17 @@ const Services: React.FC = () => {
           </Card>
         )}
       </div>
+      <ConfirmDialog
+        open={showDeleteServiceModal}
+        onOpenChange={setShowDeleteServiceModal}
+        title="Excluir Serviço"
+        description={`Tem certeza que deseja excluir o serviço "${serviceToDelete?.description}"? Esta ação não pode ser desfeita.`}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </Layout>
   );
 };

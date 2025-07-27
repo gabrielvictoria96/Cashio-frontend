@@ -8,11 +8,12 @@ import { CurrencyInput } from './ui/currency-input';
 import { DateInput } from './ui/date-input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { ArrowLeft, User, Mail, Phone, MapPin, DollarSign, Plus, Edit, Trash2, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, MapPin, DollarSign, Plus, Trash2, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
 import Layout from './Layout';
 import { authService, type Client, type Service, type CreateServiceData, type ServiceInstallment, PaymentMethodType } from '../services/api';
 import { formatCurrency } from '../utils/currency';
 import { showError, showSuccess } from '../utils/notifications';
+import ConfirmDialog from './ui/confirm-dialog';
 
 const ClientDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -25,6 +26,8 @@ const ClientDetail: React.FC = () => {
   const [showServiceForm, setShowServiceForm] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [installmentToMark, setInstallmentToMark] = useState<ServiceInstallment | null>(null);
+  const [showDeleteServiceModal, setShowDeleteServiceModal] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState<{ id: string; description: string } | null>(null);
   const [serviceFormData, setServiceFormData] = useState<CreateServiceData>({
     companyId: '',
     clientId: '',
@@ -160,17 +163,30 @@ const ClientDetail: React.FC = () => {
   };
 
   const handleDeleteService = async (serviceId: string, serviceDescription: string) => {
-    if (window.confirm(`Tem certeza que deseja excluir o serviço "${serviceDescription}"?\n\n⚠️ ATENÇÃO: Esta ação também excluirá todas as parcelas associadas a este serviço.`)) {
-      try {
-        await authService.deleteService(serviceId);
-        // Recarregar os serviços do cliente
-        await fetchClientServices();
-        showSuccess(`Serviço "${serviceDescription}" excluído com sucesso!\n\nTodas as parcelas associadas também foram removidas.`);
-      } catch (error) {
-        console.error('Erro ao excluir serviço:', error);
-        showError('Erro ao excluir serviço. Tente novamente.');
-      }
+    setServiceToDelete({ id: serviceId, description: serviceDescription });
+    setShowDeleteServiceModal(true);
+  };
+
+  const handleConfirmDeleteService = async () => {
+    if (!serviceToDelete) return;
+
+    try {
+      await authService.deleteService(serviceToDelete.id);
+      // Recarregar os serviços do cliente
+      await fetchClientServices();
+      showSuccess(`Serviço "${serviceToDelete.description}" excluído com sucesso!\n\nTodas as parcelas associadas também foram removidas.`);
+    } catch (error) {
+      console.error('Erro ao excluir serviço:', error);
+      showError('Erro ao excluir serviço. Tente novamente.');
+    } finally {
+      setServiceToDelete(null);
+      setShowDeleteServiceModal(false);
     }
+  };
+
+  const handleCancelDeleteService = () => {
+    setServiceToDelete(null);
+    setShowDeleteServiceModal(false);
   };
 
   const toggleServiceExpansion = (serviceId: string) => {
@@ -653,6 +669,19 @@ const ClientDetail: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Modal de Confirmação de Exclusão de Serviço */}
+        <ConfirmDialog
+          open={showDeleteServiceModal}
+          onOpenChange={setShowDeleteServiceModal}
+          title="Excluir Serviço"
+          description={`Tem certeza que deseja excluir o serviço "${serviceToDelete?.description}"?\n\n⚠️ ATENÇÃO: Esta ação também excluirá todas as parcelas associadas a este serviço.`}
+          confirmText="Excluir"
+          cancelText="Cancelar"
+          variant="destructive"
+          onConfirm={handleConfirmDeleteService}
+          onCancel={handleCancelDeleteService}
+        />
       </div>
     </Layout>
   );

@@ -254,6 +254,7 @@ const Dashboard: React.FC = () => {
 
   const getAnnualStats = () => {
     const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
     
     // Calcular baseado nas parcelas do ano selecionado
     const allInstallments = Object.values(installments).flat();
@@ -264,7 +265,10 @@ const Dashboard: React.FC = () => {
         totalRevenue: 0,
         totalReceived: 0,
         averageRevenue: 0,
+        averageReceived: 0,
+        pendingAmount: 0,
         monthsCount: 0,
+        monthsWithPayments: 0,
         isCurrentYear: selectedYear === currentYear
       };
     }
@@ -279,6 +283,11 @@ const Dashboard: React.FC = () => {
       .filter(installment => installment.paidAt)
       .reduce((sum, installment) => sum + installment.amount, 0);
     
+    // Calcular valor que falta receber (parcelas não pagas)
+    const pendingAmount = yearInstallments
+      .filter(installment => !installment.paidAt)
+      .reduce((sum, installment) => sum + installment.amount, 0);
+    
     const averageRevenue = totalAnnualRevenue / 12;
     
     // Calcular quantos meses têm dados para o ano selecionado
@@ -286,11 +295,24 @@ const Dashboard: React.FC = () => {
       yearInstallments.map(installment => new Date(installment.dueDate).getMonth())
     ).size;
 
+    // Calcular quantos meses têm pagamentos (parcelas pagas)
+    const monthsWithPayments = new Set(
+      yearInstallments
+        .filter(installment => installment.paidAt)
+        .map(installment => new Date(installment.dueDate).getMonth())
+    ).size;
+
+    // Calcular a média mensal dos valores recebidos (considerando apenas os meses que tiveram pagamentos)
+    const averageReceived = monthsWithPayments > 0 ? totalReceived / monthsWithPayments : 0;
+
     return {
       totalRevenue: totalAnnualRevenue,
       totalReceived,
       averageRevenue,
+      averageReceived,
+      pendingAmount,
       monthsCount: monthsWithData,
+      monthsWithPayments,
       isCurrentYear: selectedYear === currentYear
     };
   };
@@ -695,57 +717,80 @@ const Dashboard: React.FC = () => {
           </Card>
 
           {/* Estatísticas Anuais */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">
-                  Total Recebido {selectedYear}
-                </CardTitle>
-                <Check className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-700 dark:text-green-300">
-                  {formatCurrency(getAnnualStats().totalReceived)}
-                </div>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                  {getAnnualStats().monthsCount} {getAnnualStats().monthsCount === 1 ? 'mês' : 'meses'} com pagamentos
-                </p>
-              </CardContent>
-            </Card>
+          <div className="space-y-6">
+            {/* Primeira linha: Total Recebido e Valor que Falta Receber */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">
+                    Total Recebido {selectedYear}
+                  </CardTitle>
+                  <Check className="h-4 w-4 text-green-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-700 dark:text-green-300">
+                    {formatCurrency(getAnnualStats().totalReceived)}
+                  </div>
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                    Valor recebido até o momento
+                  </p>
+                </CardContent>
+              </Card>
 
-            <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-300">
-                  Receita Total {selectedYear}
-                </CardTitle>
-                <TrendingUp className="h-4 w-4 text-purple-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
-                  {formatCurrency(getAnnualStats().totalRevenue)}
-                </div>
-                <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
-                  Receita total do ano {selectedYear}
-                </p>
-              </CardContent>
-            </Card>
+              <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-orange-700 dark:text-orange-300">
+                    Falta Receber {selectedYear}
+                  </CardTitle>
+                  <Clock className="h-4 w-4 text-orange-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-orange-700 dark:text-orange-300">
+                    {formatCurrency(getAnnualStats().pendingAmount)}
+                  </div>
+                  <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                    Valor pendente de recebimento
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
 
-            <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
-                  Média Mensal {selectedYear}
-                </CardTitle>
-                <TrendingUp className="h-4 w-4 text-indigo-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
-                  {formatCurrency(getAnnualStats().averageRevenue)}
-                </div>
-                <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
-                  Média anual dividida por 12 meses
-                </p>
-              </CardContent>
-            </Card>
+            {/* Segunda linha: Receita Total e Média Mensal da Receita */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                    Receita Total {selectedYear}
+                  </CardTitle>
+                  <TrendingUp className="h-4 w-4 text-purple-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+                    {formatCurrency(getAnnualStats().totalRevenue)}
+                  </div>
+                  <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                    Receita total do ano {selectedYear}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
+                    Média Mensal {selectedYear}
+                  </CardTitle>
+                  <TrendingUp className="h-4 w-4 text-indigo-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+                    {formatCurrency(getAnnualStats().averageRevenue)}
+                  </div>
+                  <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
+                    Receita anual dividida por 12 meses
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
