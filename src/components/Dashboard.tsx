@@ -254,7 +254,6 @@ const Dashboard: React.FC = () => {
 
   const getAnnualStats = () => {
     const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().getMonth();
     
     // Calcular baseado nas parcelas do ano selecionado
     const allInstallments = Object.values(installments).flat();
