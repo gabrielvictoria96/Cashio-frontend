@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { DollarSign, Calendar, CheckCircle, Clock, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, AlertCircle, Check } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { ArrowLeft, DollarSign, TrendingUp, Users, Calendar, Check, Clock, AlertTriangle, Filter } from 'lucide-react';
 import Layout from './Layout';
-import { authService, type Client, type Service, type ServiceInstallment } from '../services/api';
+import { authService, type ServiceInstallment, type Client, type Company, type Service } from '../services/api';
 import { formatCurrency } from '../utils/currency';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { showError } from '../utils/notifications';
 
 // Componente de tooltip customizado para funcionar no modo escuro
 const CustomTooltip = ({ active, payload, label, selectedYear }: any) => {
@@ -28,7 +28,6 @@ const CustomTooltip = ({ active, payload, label, selectedYear }: any) => {
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [installments, setInstallments] = useState<{ [serviceId: string]: ServiceInstallment[] }>({});
@@ -121,7 +120,7 @@ const Dashboard: React.FC = () => {
       setInstallmentToMark(null);
     } catch (error) {
       console.error('Erro ao marcar parcela como paga:', error);
-      alert('Erro ao marcar parcela como paga. Tente novamente.');
+      showError('Erro ao marcar parcela como paga. Tente novamente.');
     }
   };
 
@@ -344,7 +343,7 @@ const Dashboard: React.FC = () => {
                 size="sm"
                 onClick={handlePreviousMonth}
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ArrowLeft className="h-4 w-4" />
               </Button>
               
               <div className="flex items-center space-x-2">
@@ -383,7 +382,7 @@ const Dashboard: React.FC = () => {
                 size="sm"
                 onClick={handleNextMonth}
               >
-                <ChevronRight className="h-4 w-4" />
+                <ArrowLeft className="h-4 w-4 rotate-180" />
               </Button>
             </div>
           </div>
@@ -408,7 +407,7 @@ const Dashboard: React.FC = () => {
             <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">Já Pago</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-600" />
+                <Check className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-700 dark:text-green-300">
@@ -454,7 +453,7 @@ const Dashboard: React.FC = () => {
                     </span>
                   ) : (
                     <span className="flex items-center">
-                      <TrendingDown className="h-3 w-3 mr-1" />
+                      <TrendingUp className="h-3 w-3 mr-1" />
                       Atenção
                     </span>
                   )}
@@ -613,9 +612,9 @@ const Dashboard: React.FC = () => {
                         <div className="flex items-center space-x-4">
                           <div className={`p-2 rounded-full ${getIconStyles()}`}>
                             {status === 'paid' ? (
-                              <CheckCircle className="h-4 w-4" />
+                              <Check className="h-4 w-4" />
                             ) : status === 'overdue' ? (
-                              <AlertCircle className="h-4 w-4" />
+                              <AlertTriangle className="h-4 w-4" />
                             ) : (
                               <Clock className="h-4 w-4" />
                             )}
@@ -668,7 +667,7 @@ const Dashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={monthlyData}>
+                <LineChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis 
                     dataKey="month" 
@@ -683,13 +682,14 @@ const Dashboard: React.FC = () => {
                   <Tooltip 
                     content={<CustomTooltip selectedYear={selectedYear} />}
                   />
-                  <Bar 
+                  <Line 
+                    type="monotone" 
                     dataKey="revenue" 
-                    fill="#3b82f6" 
+                    stroke="#3b82f6" 
                     name="Receita Total"
-                    radius={[4, 4, 0, 0]}
+                    dot={false}
                   />
-                </BarChart>
+                </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -701,7 +701,7 @@ const Dashboard: React.FC = () => {
                 <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">
                   Total Recebido {selectedYear}
                 </CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-600" />
+                <Check className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-700 dark:text-green-300">
@@ -735,7 +735,7 @@ const Dashboard: React.FC = () => {
                 <CardTitle className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
                   Média Mensal {selectedYear}
                 </CardTitle>
-                <TrendingDown className="h-4 w-4 text-indigo-600" />
+                <TrendingUp className="h-4 w-4 text-indigo-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">

@@ -13,6 +13,7 @@ import { ArrowLeft, Briefcase, Plus, Edit, Trash2, DollarSign, Calendar, User, C
 import Layout from './Layout';
 import { authService, type Service, type CreateServiceData, type Client, type Company, PaymentMethodType, type ServiceInstallment } from '../services/api';
 import { formatCurrency } from '../utils/currency';
+import { showError, showSuccess } from '../utils/notifications';
 
 const Services: React.FC = () => {
   const { user } = useAuth();
@@ -111,7 +112,7 @@ const Services: React.FC = () => {
     e.preventDefault();
     
     if (!formData.clientId || !formData.description || !formData.amount || !formData.firstPaymentDate || !formData.serviceDate) {
-      alert('Por favor, preencha todos os campos obrigatórios.');
+      showError('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
 
@@ -130,9 +131,10 @@ const Services: React.FC = () => {
       setEditingService(null);
       resetForm();
       await fetchServices();
+      showSuccess('Serviço salvo com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar serviço:', error);
-      alert('Erro ao salvar serviço. Tente novamente.');
+      showError('Erro ao salvar serviço. Tente novamente.');
     }
   };
 
@@ -157,9 +159,10 @@ const Services: React.FC = () => {
       try {
         await authService.deleteService(serviceId);
         fetchServices();
+        showSuccess('Serviço excluído com sucesso!');
       } catch (error) {
         console.error('Erro ao excluir serviço:', error);
-        alert('Erro ao excluir serviço. Tente novamente.');
+        showError('Erro ao excluir serviço. Tente novamente.');
       }
     }
   };

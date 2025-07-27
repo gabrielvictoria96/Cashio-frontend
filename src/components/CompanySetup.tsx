@@ -10,6 +10,7 @@ import { Building2 } from 'lucide-react';
 import Layout from './Layout';
 import { authService, type SubscriptionPlan, type CreateCompanyData } from '../services/api';
 import { formatPlanPrice } from '../utils/currency';
+import { showError, showSuccess } from '../utils/notifications';
 
 const CompanySetup: React.FC = () => {
   const { user } = useAuth();
@@ -30,6 +31,15 @@ const CompanySetup: React.FC = () => {
         setLoading(true);
         const response = await authService.getSubscriptionPlans();
         setSubscriptionPlans(response.subscriptionPlans || []);
+        
+        // Pré-selecionar o plano escolhido no SubscriptionPlanSelector
+        const selectedPlanId = localStorage.getItem('selectedSubscriptionPlanId');
+        if (selectedPlanId) {
+          setFormData(prev => ({
+            ...prev,
+            subscriptionPlanId: selectedPlanId
+          }));
+        }
       } catch (error) {
         console.error('Erro ao buscar planos de assinatura:', error);
       } finally {
@@ -51,7 +61,7 @@ const CompanySetup: React.FC = () => {
     e.preventDefault();
     
     if (!formData.name || !formData.subscriptionPlanId) {
-      alert('Por favor, preencha todos os campos obrigatórios.');
+      showError('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
 
@@ -70,10 +80,11 @@ const CompanySetup: React.FC = () => {
       };
       
       await authService.createCompany(companyData);
+      showSuccess('Empresa criada com sucesso!');
       navigate('/dashboard');
     } catch (error) {
       console.error('Erro ao criar empresa:', error);
-      alert('Erro ao criar empresa. Tente novamente.');
+      showError('Erro ao criar empresa. Tente novamente.');
     } finally {
       setSubmitting(false);
     }

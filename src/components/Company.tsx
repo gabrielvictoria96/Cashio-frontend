@@ -5,9 +5,10 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { ArrowLeft, Building2, Plus, Edit, Save, X } from 'lucide-react';
+import { ArrowLeft, Building2, Edit, X } from 'lucide-react';
 import Layout from './Layout';
 import { authService, type Company, type CreateCompanyData } from '../services/api';
+import { showError, showSuccess } from '../utils/notifications';
 
 const CompanyComponent: React.FC = () => {
   const { user } = useAuth();
@@ -26,11 +27,11 @@ const CompanyComponent: React.FC = () => {
 
   useEffect(() => {
     if (user) {
-      setFormData(prev => ({ ...prev, userId: user.id }));
+      setFormData((prev: CreateCompanyData) => ({ ...prev, userId: user.id }));
     }
     const selectedPlanId = localStorage.getItem('selectedSubscriptionPlanId');
     if (selectedPlanId) {
-      setFormData(prev => ({ ...prev, subscriptionPlanId: selectedPlanId }));
+      setFormData((prev: CreateCompanyData) => ({ ...prev, subscriptionPlanId: selectedPlanId }));
     }
     fetchCompany();
   }, [user]);
@@ -38,12 +39,21 @@ const CompanyComponent: React.FC = () => {
   const fetchCompany = async () => {
     try {
       setLoading(true);
-      const response = await authService.getCompanies();
-      const companies = response.companies || [];
-      setCompany(companies[0] || null);
+      const response = await authService.getUserCompany();
+      setCompany(response.company);
+      
+      if (response.company) {
+        setEditingCompany(response.company);
+        setFormData({
+          userId: response.company.userId,
+          subscriptionPlanId: response.company.subscriptionPlanId,
+          name: response.company.name,
+          urlLogo: response.company.urlLogo || '',
+          pixCode: response.company.pixCode || ''
+        });
+      }
     } catch (error) {
       console.error('Erro ao buscar empresa:', error);
-      setCompany(null);
     } finally {
       setLoading(false);
     }
@@ -53,7 +63,7 @@ const CompanyComponent: React.FC = () => {
     e.preventDefault();
     
     if (!formData.name) {
-      alert('Por favor, preencha todos os campos obrigatórios.');
+      showError('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
 
@@ -68,22 +78,11 @@ const CompanyComponent: React.FC = () => {
       setEditingCompany(null);
       resetForm();
       fetchCompany();
+      showSuccess('Empresa salva com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar empresa:', error);
-      alert('Erro ao salvar empresa. Tente novamente.');
+      showError('Erro ao salvar empresa. Tente novamente.');
     }
-  };
-
-  const handleEdit = (company: Company) => {
-    setEditingCompany(company);
-    setFormData({
-      userId: company.userId,
-      subscriptionPlanId: company.subscriptionPlanId,
-      name: company.name,
-      urlLogo: company.urlLogo || '',
-      pixCode: company.pixCode || ''
-    });
-    setShowForm(true);
   };
 
   const resetForm = () => {
@@ -132,140 +131,139 @@ const CompanyComponent: React.FC = () => {
           </div>
         </div>
 
-        {!showForm && (
-          <div className="space-y-6">
-            {company ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center">
+        <div className="max-w-4xl mx-auto">
+          {!showForm && (
+            <div className="space-y-6">
+              {company ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
                       <Building2 className="h-5 w-5 mr-2" />
-                      Sua Empresa
+                      Informações da Empresa
+                    </CardTitle>
+                    <CardDescription>
+                      Visualize e edite as informações da sua empresa
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-sm font-medium">Nome da Empresa</Label>
+                        <p className="text-sm text-muted-foreground">{company.name}</p>
+                      </div>
+                      {company.urlLogo && (
+                        <div>
+                          <Label className="text-sm font-medium">URL do Logo</Label>
+                          <p className="text-sm text-muted-foreground">{company.urlLogo}</p>
+                        </div>
+                      )}
+                      {company.pixCode && (
+                        <div>
+                          <Label className="text-sm font-medium">Chave PIX</Label>
+                          <p className="text-sm text-muted-foreground">{company.pixCode}</p>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(company)}
-                      >
+                    <div className="mt-6">
+                      <Button onClick={() => setShowForm(true)}>
                         <Edit className="h-4 w-4 mr-2" />
-                        Editar
+                        Editar Empresa
                       </Button>
                     </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="font-medium">Nome da Empresa</Label>
-                      <p className="text-sm text-muted-foreground">{company.name}</p>
-                    </div>
-                    {company.urlLogo && (
-                      <div>
-                        <Label className="font-medium">URL do Logo</Label>
-                        <p className="text-sm text-muted-foreground">{company.urlLogo}</p>
-                      </div>
-                    )}
-                    {company.pixCode && (
-                      <div>
-                        <Label className="font-medium">Chave PIX</Label>
-                        <p className="text-sm text-muted-foreground">{company.pixCode}</p>
-                      </div>
-                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Building2 className="h-5 w-5 mr-2" />
+                      Nenhuma Empresa Cadastrada
+                    </CardTitle>
+                    <CardDescription>
+                      Cadastre sua empresa para começar a usar o sistema
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button onClick={() => setShowForm(true)}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Cadastrar Empresa
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {showForm && (
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  {editingCompany ? 'Editar Empresa' : 'Nova Empresa'}
+                </CardTitle>
+                <CardDescription>
+                  {editingCompany 
+                    ? 'Edite as informações da empresa'
+                    : 'Preencha as informações da empresa'
+                  }
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nome da Empresa *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData((prev: CreateCompanyData) => ({ ...prev, name: e.target.value }))}
+                      placeholder="Digite o nome da empresa"
+                      required
+                    />
                   </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Building2 className="h-5 w-5 mr-2" />
-                    Cadastrar Empresa
-                  </CardTitle>
-                  <CardDescription>
-                    Você ainda não possui uma empresa cadastrada. Clique no botão abaixo para criar sua primeira empresa.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button onClick={() => setShowForm(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Cadastrar Empresa
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
 
-        {showForm && (
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {editingCompany ? 'Editar Empresa' : 'Nova Empresa'}
-              </CardTitle>
-              <CardDescription>
-                {editingCompany 
-                  ? 'Edite as informações da sua empresa'
-                  : 'Preencha as informações da sua empresa'
-                }
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome da Empresa *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Digite o nome da empresa"
-                    required
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="urlLogo">URL do Logo (opcional)</Label>
+                    <Input
+                      id="urlLogo"
+                      value={formData.urlLogo}
+                      onChange={(e) => setFormData((prev: CreateCompanyData) => ({ ...prev, urlLogo: e.target.value }))}
+                      placeholder="Digite a URL do logo da empresa"
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="urlLogo">URL do Logo (opcional)</Label>
-                  <Input
-                    id="urlLogo"
-                    value={formData.urlLogo}
-                    onChange={(e) => setFormData(prev => ({ ...prev, urlLogo: e.target.value }))}
-                    placeholder="Digite a URL do logo da empresa"
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="pixCode">Chave PIX (opcional)</Label>
+                    <Input
+                      id="pixCode"
+                      value={formData.pixCode}
+                      onChange={(e) => setFormData((prev: CreateCompanyData) => ({ ...prev, pixCode: e.target.value }))}
+                      placeholder="Digite a chave PIX da empresa"
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="pixCode">chave PIX (opcional)</Label>
-                  <Input
-                    id="pixCode"
-                    value={formData.pixCode}
-                    onChange={(e) => setFormData(prev => ({ ...prev, pixCode: e.target.value }))}
-                    placeholder="Digite a chave PIX da empresa"
-                  />
-                </div>
-
-                <div className="flex space-x-2 pt-4">
-                  <Button type="submit" className="flex-1">
-                    {editingCompany ? (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        Atualizar Empresa
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Cadastrar Empresa
-                      </>
-                    )}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={handleCancel}>
-                    <X className="h-4 w-4 mr-2" />
-                    Cancelar
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
+                  <div className="flex space-x-2 pt-4">
+                    <Button type="submit" className="flex-1">
+                      {editingCompany ? (
+                        <>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Atualizar Empresa
+                        </>
+                      ) : (
+                        <>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Cadastrar Empresa
+                        </>
+                      )}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={handleCancel}>
+                      <X className="h-4 w-4 mr-2" />
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     </Layout>
   );

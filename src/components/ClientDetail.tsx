@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -9,13 +8,13 @@ import { CurrencyInput } from './ui/currency-input';
 import { DateInput } from './ui/date-input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { ArrowLeft, User, Mail, Phone, Briefcase, DollarSign, Calendar, CheckCircle, Clock, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, MapPin, DollarSign, Plus, Edit, Trash2, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
 import Layout from './Layout';
-import { authService, type Client, type Service, type ServiceInstallment, type CreateServiceData, PaymentMethodType } from '../services/api';
+import { authService, type Client, type Service, type CreateServiceData, type ServiceInstallment, PaymentMethodType } from '../services/api';
 import { formatCurrency } from '../utils/currency';
+import { showError, showSuccess } from '../utils/notifications';
 
 const ClientDetail: React.FC = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const { clientId } = useParams<{ clientId: string }>();
   const [client, setClient] = useState<Client | null>(null);
@@ -38,19 +37,21 @@ const ClientDetail: React.FC = () => {
     installments: 1
   });
 
-  useEffect(() => {
-    if (clientId) {
-      fetchClientData();
-    }
-  }, [clientId]);
+  const resetServiceForm = useCallback(() => {
+    setServiceFormData({
+      companyId: client?.companyId || '',
+      clientId: clientId || '',
+      description: '',
+      amount: 0,
+      paymentMethod: PaymentMethodType.PIX,
+      templateNotificationMessage: '',
+      firstPaymentDate: '',
+      serviceDate: '',
+      installments: 1
+    });
+  }, [client, clientId]);
 
-  useEffect(() => {
-    if (client) {
-      resetServiceForm();
-    }
-  }, [client]);
-
-  const fetchClientData = async () => {
+  const fetchClientData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -60,7 +61,7 @@ const ClientDetail: React.FC = () => {
       const foundClient = allClients.find(c => c.id === clientId);
       
       if (!foundClient) {
-        alert('Cliente não encontrado');
+        showError('Cliente não encontrado');
         navigate('/clients');
         return;
       }
@@ -75,7 +76,19 @@ const ClientDetail: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [clientId, navigate]);
+
+  useEffect(() => {
+    if (clientId) {
+      fetchClientData();
+    }
+  }, [clientId, fetchClientData]);
+
+  useEffect(() => {
+    if (client) {
+      resetServiceForm();
+    }
+  }, [client, resetServiceForm]);
 
   const fetchClientServices = async () => {
     try {
@@ -123,9 +136,10 @@ const ClientDetail: React.FC = () => {
       });
       setShowConfirmModal(false);
       setInstallmentToMark(null);
+      showSuccess('Parcela marcada como paga!');
     } catch (error) {
       console.error('Erro ao marcar parcela como paga:', error);
-      alert('Erro ao marcar parcela como paga. Tente novamente.');
+      showError('Erro ao marcar parcela como paga. Tente novamente.');
     }
   };
 
@@ -151,10 +165,10 @@ const ClientDetail: React.FC = () => {
         await authService.deleteService(serviceId);
         // Recarregar os serviços do cliente
         await fetchClientServices();
-        alert(`Serviço "${serviceDescription}" excluído com sucesso!\n\nTodas as parcelas associadas também foram removidas.`);
+        showSuccess(`Serviço "${serviceDescription}" excluído com sucesso!\n\nTodas as parcelas associadas também foram removidas.`);
       } catch (error) {
         console.error('Erro ao excluir serviço:', error);
-        alert('Erro ao excluir serviço. Tente novamente.');
+        showError('Erro ao excluir serviço. Tente novamente.');
       }
     }
   };
@@ -175,7 +189,7 @@ const ClientDetail: React.FC = () => {
     e.preventDefault();
     
     if (!serviceFormData.description || !serviceFormData.amount || !serviceFormData.firstPaymentDate || !serviceFormData.serviceDate) {
-      alert('Por favor, preencha todos os campos obrigatórios.');
+      showError('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
 
@@ -185,24 +199,11 @@ const ClientDetail: React.FC = () => {
       setShowServiceForm(false);
       resetServiceForm();
       await fetchClientServices();
+      showSuccess('Serviço cadastrado com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar serviço:', error);
-      alert('Erro ao salvar serviço. Tente novamente.');
+      showError('Erro ao salvar serviço. Tente novamente.');
     }
-  };
-
-  const resetServiceForm = () => {
-    setServiceFormData({
-      companyId: client?.companyId || '',
-      clientId: clientId || '',
-      description: '',
-      amount: 0,
-      paymentMethod: PaymentMethodType.PIX,
-      templateNotificationMessage: '',
-      firstPaymentDate: '',
-      serviceDate: '',
-      installments: 1
-    });
   };
 
   const handleCancelServiceForm = () => {
@@ -319,7 +320,7 @@ const ClientDetail: React.FC = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Já Pago</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-600" />
+              <Check className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">{formatCurrency(totalPaid)}</div>
@@ -332,7 +333,7 @@ const ClientDetail: React.FC = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">A Receber</CardTitle>
-              <Clock className="h-4 w-4 text-orange-600" />
+              <X className="h-4 w-4 text-orange-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">{formatCurrency(totalPending)}</div>
@@ -348,7 +349,7 @@ const ClientDetail: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center">
-                <Briefcase className="h-5 w-5 mr-2" />
+                <MapPin className="h-5 w-5 mr-2" />
                 Serviços Contratados
               </div>
               <Button onClick={() => setShowServiceForm(true)}>
@@ -363,7 +364,7 @@ const ClientDetail: React.FC = () => {
           <CardContent>
             {clientServices.length === 0 ? (
               <div className="text-center py-8">
-                <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Nenhum serviço encontrado</h3>
                 <p className="text-muted-foreground">
                   Este cliente ainda não possui serviços contratados.
@@ -456,9 +457,9 @@ const ClientDetail: React.FC = () => {
                                           : 'bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-400'
                                       }`}>
                                         {installment.paidAt ? (
-                                          <CheckCircle className="h-3 w-3" />
+                                          <Check className="h-3 w-3" />
                                         ) : (
-                                          <Clock className="h-3 w-3" />
+                                          <X className="h-3 w-3" />
                                         )}
                                       </div>
                                       <div>

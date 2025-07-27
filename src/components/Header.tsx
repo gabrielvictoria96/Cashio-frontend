@@ -23,7 +23,15 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            {/* Espaço vazio para manter o layout */}
+            {/* Menu hambúrguer no lado esquerdo */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onMenuToggle}
+              className="lg:hidden mr-4"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -42,15 +50,6 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
             >
               <LogOut className="h-4 w-4 mr-2" />
               Sair
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onMenuToggle}
-              className="lg:hidden"
-            >
-              <Menu className="h-5 w-5" />
             </Button>
           </div>
         </div>

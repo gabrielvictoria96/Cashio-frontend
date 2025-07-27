@@ -4,9 +4,10 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { ArrowLeft, Users, Plus, ChevronRight, Trash2, Search } from 'lucide-react';
+import { ArrowLeft, Users, Plus, Edit, Trash2, Search } from 'lucide-react';
 import Layout from './Layout';
 import { authService, type Client, type CreateClientData, type Company } from '../services/api';
+import { showError, showSuccess } from '../utils/notifications';
 
 const Clients: React.FC = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ const Clients: React.FC = () => {
   const [userCompany, setUserCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState<CreateClientData>({
     companyId: '',
     name: '',
@@ -60,7 +62,7 @@ const Clients: React.FC = () => {
     e.preventDefault();
     
     if (!formData.name || !formData.email || !formData.phoneNumber) {
-      alert('Por favor, preencha todos os campos obrigatórios.');
+      showError('Por favor, preencha todos os campos obrigatórios.');
       return;
     }
 
@@ -68,19 +70,39 @@ const Clients: React.FC = () => {
     console.log('Company ID:', formData.companyId);
 
     try {
-      await authService.createClient(formData);
+      if (editingClient) {
+        await authService.updateClient(editingClient.id!, formData);
+        showSuccess('Cliente atualizado com sucesso!');
+      } else {
+        await authService.createClient(formData);
+        showSuccess('Cliente cadastrado com sucesso!');
+      }
       
       setShowForm(false);
+      setEditingClient(null);
       resetForm();
       fetchClients();
     } catch (error) {
       console.error('Erro ao salvar cliente:', error);
-      alert('Erro ao salvar cliente. Tente novamente.');
+      showError('Erro ao salvar cliente. Tente novamente.');
     }
   };
 
   const handleClientClick = (clientId: string) => {
     navigate(`/clients/${clientId}`);
+  };
+
+  const handleEdit = (client: Client, e: React.MouseEvent) => {
+    e.stopPropagation(); // Previne que o clique propague para o card
+    
+    setEditingClient(client);
+    setFormData({
+      companyId: client.companyId,
+      name: client.name,
+      email: client.email,
+      phoneNumber: client.phoneNumber
+    });
+    setShowForm(true);
   };
 
   const handleDelete = async (clientId: string, clientName: string, e: React.MouseEvent) => {
@@ -90,10 +112,10 @@ const Clients: React.FC = () => {
       try {
         await authService.deleteClient(clientId);
         fetchClients(); // Recarrega a lista de clientes
-        alert(`Cliente "${clientName}" excluído com sucesso!\n\nTodos os serviços e parcelas associados também foram removidos.`);
+        showSuccess(`Cliente "${clientName}" excluído com sucesso!\n\nTodos os serviços e parcelas associados também foram removidos.`);
       } catch (error) {
         console.error('Erro ao excluir cliente:', error);
-        alert('Erro ao excluir cliente. Tente novamente.');
+        showError('Erro ao excluir cliente. Tente novamente.');
       }
     }
   };
@@ -109,6 +131,7 @@ const Clients: React.FC = () => {
 
   const handleCancel = () => {
     setShowForm(false);
+    setEditingClient(null);
     resetForm();
   };
 
@@ -245,12 +268,19 @@ const Clients: React.FC = () => {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={(e) => handleEdit(client, e)}
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={(e) => handleDelete(client.id!, client.name, e)}
                             className="text-red-600 hover:text-red-700 hover:bg-red-50"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </div>
                       </div>
                     ))}
@@ -264,9 +294,12 @@ const Clients: React.FC = () => {
         {showForm && (
           <Card>
             <CardHeader>
-              <CardTitle>Novo Cliente</CardTitle>
+              <CardTitle>{editingClient ? 'Editar Cliente' : 'Novo Cliente'}</CardTitle>
               <CardDescription>
-                Preencha as informações do cliente
+                {editingClient 
+                  ? 'Edite as informações do cliente'
+                  : 'Preencha as informações do cliente'
+                }
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -307,7 +340,7 @@ const Clients: React.FC = () => {
 
                 <div className="flex space-x-2 pt-4">
                   <Button type="submit" className="flex-1">
-                    Cadastrar Cliente
+                    {editingClient ? 'Atualizar Cliente' : 'Cadastrar Cliente'}
                   </Button>
                   <Button type="button" variant="outline" onClick={handleCancel}>
                     Cancelar

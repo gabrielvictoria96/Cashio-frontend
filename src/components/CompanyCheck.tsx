@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../services/api';
-import { Company } from '../services/api';
 
 interface CompanyCheckProps {
   children: React.ReactNode;
@@ -14,11 +13,7 @@ const CompanyCheck: React.FC<CompanyCheckProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [hasCompany, setHasCompany] = useState(false);
 
-  useEffect(() => {
-    checkUserCompany();
-  }, []);
-
-  const checkUserCompany = async () => {
+  const checkUserCompany = useCallback(async () => {
     if (!user) {
       setLoading(false);
       return;
@@ -31,13 +26,8 @@ const CompanyCheck: React.FC<CompanyCheckProps> = ({ children }) => {
       setHasCompany(hasUserCompany);
 
       if (!hasUserCompany) {
-        // Verificar se há um plano selecionado
-        const selectedPlanId = localStorage.getItem('selectedSubscriptionPlanId');
-        if (selectedPlanId) {
-          navigate('/company-setup');
-        } else {
-          navigate('/subscription-plan');
-        }
+        // Se não tem empresa, sempre redirecionar para seleção de plano primeiro
+        navigate('/subscription-plan');
       }
     } catch (error) {
       console.error('Erro ao verificar empresa do usuário:', error);
@@ -46,7 +36,11 @@ const CompanyCheck: React.FC<CompanyCheckProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, navigate]);
+
+  useEffect(() => {
+    checkUserCompany();
+  }, [checkUserCompany]);
 
   if (loading) {
     return (

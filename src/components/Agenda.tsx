@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -9,9 +8,9 @@ import { ArrowLeft, Calendar, ChevronLeft, ChevronRight, User, DollarSign, Clock
 import Layout from './Layout';
 import { authService, type Service, type Client, type ServiceInstallment } from '../services/api';
 import { formatCurrency } from '../utils/currency';
+import { showError } from '../utils/notifications';
 
 const Agenda: React.FC = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [services, setServices] = useState<Service[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -20,11 +19,7 @@ const Agenda: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       await Promise.all([fetchServices(), fetchClients()]);
@@ -33,7 +28,11 @@ const Agenda: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const fetchServices = async () => {
     try {
@@ -88,7 +87,7 @@ const Agenda: React.FC = () => {
       });
     } catch (error) {
       console.error('Erro ao marcar parcela como paga:', error);
-      alert('Erro ao marcar parcela como paga. Tente novamente.');
+      showError('Erro ao marcar parcela como paga. Tente novamente.');
     }
   };
 

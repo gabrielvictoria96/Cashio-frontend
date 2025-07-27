@@ -6,6 +6,7 @@ import { ArrowLeft, Check, CreditCard } from 'lucide-react';
 import Layout from './Layout';
 import { authService, type SubscriptionPlan, type Company } from '../services/api';
 import { formatPlanPrice } from '../utils/currency';
+import { showError, showSuccess } from '../utils/notifications';
 
 const SubscriptionPlanSelector: React.FC = () => {
   const navigate = useNavigate();
@@ -52,7 +53,7 @@ const SubscriptionPlanSelector: React.FC = () => {
 
   const handleContinue = async () => {
     if (!selectedPlan) {
-      alert('Por favor, selecione um plano de assinatura.');
+      showError('Por favor, selecione um plano de assinatura.');
       return;
     }
 
@@ -73,16 +74,16 @@ const SubscriptionPlanSelector: React.FC = () => {
           urlLogo: userCompany.urlLogo,
           pixCode: userCompany.pixCode
         });
-        alert('Plano atualizado com sucesso!');
+        showSuccess('Plano atualizado com sucesso!');
+        navigate('/dashboard');
       } else {
-        // Se não tem empresa, salvar o plano selecionado no localStorage
+        // Se não tem empresa, salvar o plano selecionado no localStorage e ir para company-setup
         localStorage.setItem('selectedSubscriptionPlanId', selectedPlan);
+        navigate('/company-setup');
       }
-      
-      navigate('/dashboard');
     } catch (error) {
       console.error('Erro ao atualizar plano:', error);
-      alert('Erro ao atualizar plano. Tente novamente.');
+      showError('Erro ao atualizar plano. Tente novamente.');
     }
   };
 
