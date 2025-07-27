@@ -1,46 +1,125 @@
-# Getting Started with Create React App
+# Frontend - Pague-me
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Frontend React para o sistema de gestão de pagamentos "Pague-me".
 
-## Available Scripts
+## 🚀 Funcionalidades
 
-In the project directory, you can run:
+- ✅ **Autenticação completa** (Login/Registro)
+- ✅ **Login com Google** (Firebase Auth)
+- ✅ **Interface moderna** (Tailwind CSS)
+- ✅ **Formulários validados** (React Hook Form + Yup)
+- ✅ **Roteamento protegido** (React Router)
+- ✅ **Context API** para gerenciamento de estado
 
-### `npm start`
+## 🛠️ Tecnologias
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- **React 18** com TypeScript
+- **React Router DOM** para roteamento
+- **React Hook Form** para formulários
+- **Yup** para validação
+- **Tailwind CSS** para estilização
+- **Firebase Auth** para autenticação Google
+- **Axios** para requisições HTTP
+- **Lucide React** para ícones
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## 📦 Instalação
 
-### `npm test`
+```bash
+# Instalar dependências
+npm install
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+# Iniciar servidor de desenvolvimento
+npm start
+```
 
-### `npm run build`
+## ⚙️ Configuração
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 1. Firebase Configuration
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Você precisa configurar o Firebase no arquivo `src/config/firebase.ts`:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```typescript
+const firebaseConfig = {
+  apiKey: "sua-api-key",
+  authDomain: "notification-manager-5164f.firebaseapp.com",
+  projectId: "notification-manager-5164f",
+  storageBucket: "notification-manager-5164f.appspot.com",
+  messagingSenderId: "123456789012",
+  appId: "1:123456789012:web:abcdef1234567890"
+};
+```
 
-### `npm run eject`
+### 2. API Backend
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+O frontend está configurado para se conectar ao backend na porta 3000. Se necessário, altere a URL no arquivo `src/services/api.ts`:
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```typescript
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+## 🎯 Como usar
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+### 1. Registro de usuário
+- Acesse `/login`
+- Clique em "criar uma nova conta"
+- Preencha os dados e clique em "Criar conta"
 
-## Learn More
+### 2. Login
+- Acesse `/login`
+- Digite email e senha
+- Ou clique em "Google" para login social
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### 3. Dashboard
+- Após o login, você será redirecionado para `/dashboard`
+- Visualize suas informações e estatísticas
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## 📁 Estrutura do Projeto
+
+```
+src/
+├── components/
+│   ├── Login.tsx          # Página de login/registro
+│   └── Dashboard.tsx      # Dashboard principal
+├── contexts/
+│   └── AuthContext.tsx    # Contexto de autenticação
+├── services/
+│   └── api.ts            # Serviços de API
+├── config/
+│   └── firebase.ts       # Configuração Firebase
+├── App.tsx               # Componente principal
+└── index.tsx             # Ponto de entrada
+```
+
+## 🔧 Scripts Disponíveis
+
+- `npm start` - Inicia o servidor de desenvolvimento
+- `npm run build` - Gera build de produção
+- `npm test` - Executa testes
+- `npm run eject` - Ejecta configurações (irreversível)
+
+## 🌐 URLs
+
+- **Login/Registro**: `http://localhost:3000/login`
+- **Dashboard**: `http://localhost:3000/dashboard`
+
+## 🔒 Autenticação
+
+O sistema usa:
+- **JWT tokens** para autenticação
+- **Firebase Auth** para login Google
+- **Context API** para gerenciamento de estado
+- **Roteamento protegido** para páginas privadas
+
+## 🎨 Design
+
+- **Tailwind CSS** para estilização
+- **Componentes reutilizáveis**
+- **Interface responsiva**
+- **Tema personalizado** com cores primárias
+
+## 🚀 Próximos Passos
+
+1. **Configurar Firebase** com suas credenciais
+2. **Conectar com backend** rodando na porta 3000
+3. **Testar login/registro**
+4. **Implementar funcionalidades** adicionais do dashboard
