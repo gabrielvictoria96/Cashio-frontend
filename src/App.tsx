@@ -9,6 +9,7 @@ import SubscriptionPlanSelector from './components/SubscriptionPlanSelector';
 import CompanySetup from './components/CompanySetup';
 import Clients from './components/Clients';
 import ClientDetail from './components/ClientDetail';
+import Services from './components/Services';
 import Agenda from './components/Agenda';
 import CompanyCheck from './components/CompanyCheck';
 
@@ -115,6 +116,16 @@ const App: React.FC = () => {
               <ProtectedRoute>
                 <CompanyCheck>
                   <ClientDetail />
+                </CompanyCheck>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/services"
+            element={
+              <ProtectedRoute>
+                <CompanyCheck>
+                  <Services />
                 </CompanyCheck>
               </ProtectedRoute>
             }

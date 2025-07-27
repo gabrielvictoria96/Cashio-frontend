@@ -6,7 +6,8 @@ import {
   Building, 
   User, 
   Calendar,
-  CreditCard
+  CreditCard,
+  Briefcase
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -80,6 +81,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               onClick={() => handleNavigate('/subscription-plan')}
             >
               <CreditCard className="h-4 w-4 mr-3 text-current flex-shrink-0" /> Plano
+            </Button>
+
+            <Button 
+              variant={isActive('/services') ? 'default' : 'ghost'} 
+              className="w-full justify-start flex items-center" 
+              onClick={() => handleNavigate('/services')}
+            >
+              <Briefcase className="h-4 w-4 mr-3 text-current flex-shrink-0" /> Serviços
             </Button>
           </div>
         </div>
