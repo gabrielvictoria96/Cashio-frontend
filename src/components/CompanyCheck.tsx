@@ -26,13 +26,13 @@ const CompanyCheck: React.FC<CompanyCheckProps> = ({ children }) => {
       setHasCompany(hasUserCompany);
 
       if (!hasUserCompany) {
-        // Se não tem empresa, sempre redirecionar para seleção de plano primeiro
-        navigate('/subscription-plan');
+        // Se não tem empresa, redirecionar para criação da empresa
+        navigate('/company-setup');
       }
     } catch (error) {
       console.error('Erro ao verificar empresa do usuário:', error);
-      // Em caso de erro, redirecionar para seleção de plano
-      navigate('/subscription-plan');
+      // Em caso de erro, redirecionar para criação da empresa
+      navigate('/company-setup');
     } finally {
       setLoading(false);
     }
