@@ -48,8 +48,8 @@ const Login: React.FC = () => {
 
     if (!data.password) {
       newErrors.password = 'Senha é obrigatória';
-    } else if (data.password.length < 6) {
-      newErrors.password = 'Senha deve ter pelo menos 6 caracteres';
+    } else if (data.password.length < 8) {
+      newErrors.password = 'Senha deve ter pelo menos 8 caracteres';
     }
 
     if (!isLogin && !data.confirmPassword) {

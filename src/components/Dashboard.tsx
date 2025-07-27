@@ -37,10 +37,22 @@ const Dashboard: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [installmentToMark, setInstallmentToMark] = useState<ServiceInstallment | null>(null);
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<'all' | 'paid' | 'pending' | 'overdue'>('all');
+  const [maxPaymentsHeight, setMaxPaymentsHeight] = useState('max-h-96'); // Altura máxima aumentada para ~8-10 pagamentos
 
   useEffect(() => {
     fetchData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Forçar recálculo quando o ano mudar
+  useEffect(() => {
+    // Isso garante que os componentes sejam re-renderizados quando o ano mudar
+  }, [selectedYear]);
+
+  // Resetar filtro quando mês ou ano mudar
+  useEffect(() => {
+    setPaymentStatusFilter('all');
+  }, [selectedMonth, selectedYear]);
 
   const fetchData = async () => {
     try {
@@ -129,6 +141,25 @@ const Dashboard: React.FC = () => {
     setInstallmentToMark(null);
   };
 
+  const getPaymentStatus = (installment: any) => {
+    if (installment.paidAt) {
+      return 'paid'; // Verde - Pago
+    }
+    
+    const dueDate = new Date(installment.dueDate);
+    const today = new Date();
+    
+    // Remove as horas para comparar apenas as datas
+    const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    
+    if (dueDateOnly < todayOnly) {
+      return 'overdue'; // Vermelho - Vencido
+    } else {
+      return 'pending'; // Amarelo - Pendente (não venceu ainda)
+    }
+  };
+
   const getMonthlyData = () => {
     const months = [
       'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -168,6 +199,14 @@ const Dashboard: React.FC = () => {
       return dueDate.getMonth() === selectedMonth && dueDate.getFullYear() === selectedYear;
     });
 
+    // Aplicar filtro de status
+    const filteredInstallments = monthInstallments.filter(installment => {
+      if (paymentStatusFilter === 'all') return true;
+      
+      const status = getPaymentStatus(installment);
+      return status === paymentStatusFilter;
+    });
+
     const totalRevenue = monthInstallments.reduce((sum, installment) => sum + installment.amount, 0);
     const paidAmount = monthInstallments
       .filter(installment => installment.paidAt)
@@ -178,7 +217,7 @@ const Dashboard: React.FC = () => {
       totalRevenue,
       paidAmount,
       pendingAmount,
-      installments: monthInstallments.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+      installments: filteredInstallments.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
     };
   };
 
@@ -214,56 +253,45 @@ const Dashboard: React.FC = () => {
     return months[month];
   };
 
-  const getPaymentStatus = (installment: any) => {
-    if (installment.paidAt) {
-      return 'paid'; // Verde - Pago
-    }
-    
-    const dueDate = new Date(installment.dueDate);
-    const today = new Date();
-    
-    // Remove as horas para comparar apenas as datas
-    const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    
-    if (dueDateOnly < todayOnly) {
-      return 'overdue'; // Vermelho - Vencido
-    } else {
-      return 'pending'; // Amarelo - Pendente (não venceu ainda)
-    }
-  };
-
   const getAnnualStats = () => {
-    const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     
-    // Para a receita total anual, usar todos os serviços do ano selecionado
-    const yearServices = services.filter(service => {
-      const serviceDate = new Date(service.serviceDate);
-      return serviceDate.getFullYear() === selectedYear;
+    // Calcular baseado nas parcelas do ano selecionado
+    const allInstallments = Object.values(installments).flat();
+    
+    // Verificar se há dados
+    if (allInstallments.length === 0) {
+      return {
+        totalRevenue: 0,
+        totalReceived: 0,
+        averageRevenue: 0,
+        monthsCount: 0,
+        isCurrentYear: selectedYear === currentYear
+      };
+    }
+    
+    const yearInstallments = allInstallments.filter(installment => {
+      const dueDate = new Date(installment.dueDate);
+      return dueDate.getFullYear() === selectedYear;
     });
     
-    const totalAnnualRevenue = yearServices.reduce((sum, service) => sum + service.amount, 0);
+    const totalAnnualRevenue = yearInstallments.reduce((sum, installment) => sum + installment.amount, 0);
+    const totalReceived = yearInstallments
+      .filter(installment => installment.paidAt)
+      .reduce((sum, installment) => sum + installment.amount, 0);
     
-    // Para o total recebido, usar apenas os meses até o momento atual
-    const relevantData = monthlyData.filter((_, index) => {
-      if (selectedYear < currentYear) {
-        return true; // Mostrar todos os meses para anos anteriores
-      } else if (selectedYear === currentYear) {
-        return index <= currentMonth; // Mostrar apenas até o mês atual
-      }
-      return false; // Não mostrar dados de anos futuros
-    });
-
-    const totalReceived = relevantData.reduce((sum, item) => sum + item.paid, 0);
-    const averageRevenue = totalAnnualRevenue / 12; // Média baseada em 12 meses
-    const monthsCount = relevantData.length;
+    const averageRevenue = totalAnnualRevenue / 12;
+    
+    // Calcular quantos meses têm dados para o ano selecionado
+    const monthsWithData = new Set(
+      yearInstallments.map(installment => new Date(installment.dueDate).getMonth())
+    ).size;
 
     return {
       totalRevenue: totalAnnualRevenue,
       totalReceived,
       averageRevenue,
-      monthsCount,
+      monthsCount: monthsWithData,
       isCurrentYear: selectedYear === currentYear
     };
   };
@@ -458,18 +486,83 @@ const Dashboard: React.FC = () => {
               <CardDescription>
                 Gerencie os pagamentos do mês selecionado
               </CardDescription>
+              
+              {/* Filtros de Status */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-medium text-muted-foreground">Filtrar por:</span>
+                  <div className="flex items-center space-x-1">
+                    <Button
+                      variant={paymentStatusFilter === 'all' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setPaymentStatusFilter('all')}
+                      className="text-xs"
+                    >
+                      Todos
+                    </Button>
+                    <Button
+                      variant={paymentStatusFilter === 'paid' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setPaymentStatusFilter('paid')}
+                      className="text-xs text-green-600 border-green-600 hover:text-green-700 hover:bg-green-50"
+                    >
+                      Pagos
+                    </Button>
+                    <Button
+                      variant={paymentStatusFilter === 'pending' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setPaymentStatusFilter('pending')}
+                      className="text-xs text-yellow-600 border-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                    >
+                      Pendentes
+                    </Button>
+                    <Button
+                      variant={paymentStatusFilter === 'overdue' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setPaymentStatusFilter('overdue')}
+                      className="text-xs text-red-600 border-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      Vencidos
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Contador de pagamentos filtrados */}
+                <div className="text-sm text-muted-foreground">
+                  {selectedMonthData.installments.length} pagamento{selectedMonthData.installments.length !== 1 ? 's' : ''} 
+                  {paymentStatusFilter !== 'all' && (
+                    <span>
+                      {' '}
+                      {paymentStatusFilter === 'paid' ? 'pago' : paymentStatusFilter === 'pending' ? 'pendente' : 'vencido'}
+                      {selectedMonthData.installments.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {selectedMonthData.installments.length === 0 ? (
                 <div className="text-center py-8">
                   <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Nenhum pagamento este mês</h3>
+                  <h3 className="text-lg font-semibold mb-2">
+                    {paymentStatusFilter === 'all' 
+                      ? 'Nenhum pagamento este mês'
+                      : paymentStatusFilter === 'paid'
+                      ? 'Nenhum pagamento pago este mês'
+                      : paymentStatusFilter === 'pending'
+                      ? 'Nenhum pagamento pendente este mês'
+                      : 'Nenhum pagamento vencido este mês'
+                    }
+                  </h3>
                   <p className="text-muted-foreground">
-                    Não há parcelas vencendo em {getMonthName(selectedMonth)} de {selectedYear}
+                    {paymentStatusFilter === 'all' 
+                      ? `Não há parcelas vencendo em ${getMonthName(selectedMonth)} de ${selectedYear}`
+                      : `Não há parcelas ${paymentStatusFilter === 'paid' ? 'pagas' : paymentStatusFilter === 'pending' ? 'pendentes' : 'vencidas'} em ${getMonthName(selectedMonth)} de ${selectedYear}`
+                    }
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className={`space-y-3 overflow-y-auto ${maxPaymentsHeight}`} style={{ scrollbarWidth: 'thin', msOverflowStyle: 'none' }}>
                   {selectedMonthData.installments.map((installment) => {
                     const status = getPaymentStatus(installment);
                     
@@ -606,7 +699,7 @@ const Dashboard: React.FC = () => {
             <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">
-                  {getAnnualStats().isCurrentYear ? 'Total Recebido (até agora)' : `Total Recebido ${selectedYear}`}
+                  Total Recebido {selectedYear}
                 </CardTitle>
                 <CheckCircle className="h-4 w-4 text-green-600" />
               </CardHeader>
@@ -615,7 +708,7 @@ const Dashboard: React.FC = () => {
                   {formatCurrency(getAnnualStats().totalReceived)}
                 </div>
                 <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                  {getAnnualStats().monthsCount} {getAnnualStats().monthsCount === 1 ? 'mês' : 'meses'}
+                  {getAnnualStats().monthsCount} {getAnnualStats().monthsCount === 1 ? 'mês' : 'meses'} com pagamentos
                 </p>
               </CardContent>
             </Card>
@@ -623,7 +716,7 @@ const Dashboard: React.FC = () => {
             <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-300">
-                  {getAnnualStats().isCurrentYear ? 'Total da Receita Anual' : `Receita Total ${selectedYear}`}
+                  Receita Total {selectedYear}
                 </CardTitle>
                 <TrendingUp className="h-4 w-4 text-purple-600" />
               </CardHeader>
@@ -640,7 +733,7 @@ const Dashboard: React.FC = () => {
             <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
-                  Média Mensal
+                  Média Mensal {selectedYear}
                 </CardTitle>
                 <TrendingDown className="h-4 w-4 text-indigo-600" />
               </CardHeader>
@@ -649,7 +742,7 @@ const Dashboard: React.FC = () => {
                   {formatCurrency(getAnnualStats().averageRevenue)}
                 </div>
                 <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
-                  Receita anual dividida por 12 meses
+                  Média anual dividida por 12 meses
                 </p>
               </CardContent>
             </Card>
