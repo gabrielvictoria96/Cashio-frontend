@@ -68,7 +68,7 @@ export interface Client {
   companyId: string;
   name: string;
   email: string;
-  phoneNumber: string;
+  phoneNumber?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -77,7 +77,7 @@ export interface CreateClientData {
   companyId: string;
   name: string;
   email: string;
-  phoneNumber: string;
+  phoneNumber?: string;
 }
 
 export enum PaymentMethodType {
@@ -265,7 +265,7 @@ export const authService = {
 
   // Buscar parcelas de um serviço
   async getServiceInstallments(serviceId: string): Promise<{ installments: ServiceInstallment[] }> {
-    const response = await api.get(`/service-installments/service/${serviceId}`);
+    const response = await api.get(`/services/${serviceId}/installments`);
     return response.data;
   },
 

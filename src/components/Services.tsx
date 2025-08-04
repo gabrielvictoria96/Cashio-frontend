@@ -6,7 +6,8 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { CurrencyInput } from './ui/currency-input';
-import { DateInput } from './ui/date-input';
+
+import { DatePicker } from './ui/date-picker';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { ArrowLeft, Briefcase, Plus, Edit, Trash2, DollarSign, Calendar, User, CreditCard, Check, Search } from 'lucide-react';
@@ -50,6 +51,7 @@ const Services: React.FC = () => {
   });
   const [submitting, setSubmitting] = useState(false);
 
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -60,6 +62,13 @@ const Services: React.FC = () => {
       generateDefaultInstallments();
     }
   }, [formData.firstPaymentDate, formData.amount, formData.installments, customInstallments]);
+
+  // Sincronizar número de parcelas quando parcelas personalizadas mudarem
+  useEffect(() => {
+    if (customInstallments) {
+      setFormData(prev => ({ ...prev, installments: installmentsData.length }));
+    }
+  }, [installmentsData.length, customInstallments]);
 
   const fetchData = async () => {
     try {
@@ -264,6 +273,8 @@ const Services: React.FC = () => {
       dueDate: ''
     };
     setInstallmentsData([...installmentsData, newInstallment]);
+    // Atualizar o número de parcelas no formData
+    setFormData(prev => ({ ...prev, installments: installmentsData.length + 2 }));
   };
 
   const removeInstallment = (index: number) => {
@@ -274,6 +285,8 @@ const Services: React.FC = () => {
       installmentNumber: i + 1
     }));
     setInstallmentsData(renumberedInstallments);
+    // Atualizar o número de parcelas no formData
+    setFormData(prev => ({ ...prev, installments: renumberedInstallments.length }));
   };
 
   const validateInstallments = () => {
@@ -407,7 +420,7 @@ const Services: React.FC = () => {
               <p className="text-sm text-muted-foreground">
                 Primeiro, cadastre um cliente e depois volte aqui para criar os serviços.
               </p>
-              <Button onClick={() => navigate('/clients')} className="w-full">
+              <Button type="button" onClick={() => navigate('/clients')} className="w-full">
                 <User className="h-4 w-4 mr-2" />
                 Cadastrar Cliente
               </Button>
@@ -424,6 +437,7 @@ const Services: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
             <Button
+              type="button"
               variant="ghost"
               size="sm"
               onClick={handleBack}
@@ -466,7 +480,7 @@ const Services: React.FC = () => {
                     <Briefcase className="h-5 w-5 mr-2" />
                     Serviços
                   </div>
-                  <Button onClick={() => setShowForm(true)}>
+                  <Button type="button" onClick={() => setShowForm(true)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Novo Serviço
                   </Button>
@@ -485,7 +499,7 @@ const Services: React.FC = () => {
                         <p className="text-muted-foreground mb-4">
                           Não foi encontrado nenhum serviço com cliente "{searchTerm}". Tente outro termo de busca.
                         </p>
-                        <Button onClick={() => setSearchTerm('')}>
+                        <Button type="button" onClick={() => setSearchTerm('')}>
                           Limpar busca
                         </Button>
                       </>
@@ -495,7 +509,7 @@ const Services: React.FC = () => {
                         <p className="text-muted-foreground mb-4">
                           Você ainda não possui serviços cadastrados. Clique no botão "Novo Serviço" para começar.
                         </p>
-                        <Button onClick={() => setShowForm(true)}>
+                        <Button type="button" onClick={() => setShowForm(true)}>
                           <Plus className="h-4 w-4 mr-2" />
                           Cadastrar Serviço
                         </Button>
@@ -518,6 +532,7 @@ const Services: React.FC = () => {
                               </div>
                               <div className="flex space-x-1">
                                 <Button
+                                  type="button"
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleEdit(service)}
@@ -525,6 +540,7 @@ const Services: React.FC = () => {
                                   <Edit className="h-4 w-4" />
                                 </Button>
                                 <Button
+                                  type="button"
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleDelete(service.id!)}
@@ -568,6 +584,7 @@ const Services: React.FC = () => {
                     {totalPages > 1 && (
                       <div className="flex items-center justify-center space-x-2 mt-6">
                         <Button
+                          type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
@@ -580,6 +597,7 @@ const Services: React.FC = () => {
                           {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                             <Button
                               key={page}
+                              type="button"
                               variant={currentPage === page ? 'default' : 'outline'}
                               size="sm"
                               onClick={() => setCurrentPage(page)}
@@ -591,6 +609,7 @@ const Services: React.FC = () => {
                         </div>
                         
                         <Button
+                          type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
@@ -689,28 +708,24 @@ const Services: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstPaymentDate">Data do Primeiro Pagamento *</Label>
-                      <DateInput
-                        id="firstPaymentDate"
+                      <DatePicker
                         value={formData.firstPaymentDate}
                         onChange={(value) => setFormData(prev => ({ ...prev, firstPaymentDate: value }))}
-                        placeholder="dd/mm/aaaa"
+                        placeholder="Selecione a data"
                         outputFormat="iso"
-                        required
                       />
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="serviceDate">Data do Serviço *</Label>
-                      <DateInput
-                        id="serviceDate"
+                      <DatePicker
                         value={formData.serviceDate}
                         onChange={(value) => setFormData(prev => ({ ...prev, serviceDate: value }))}
-                        placeholder="dd/mm/aaaa"
+                        placeholder="Selecione a data"
                         outputFormat="iso"
-                        required
                       />
                     </div>
 
@@ -783,12 +798,11 @@ const Services: React.FC = () => {
                                 
                                 <div className="flex-1">
                                   <Label className="text-xs text-muted-foreground">Data de Vencimento</Label>
-                                  <DateInput
+                                  <DatePicker
                                     value={installment.dueDate}
                                     onChange={(value) => updateInstallment(index, 'dueDate', value)}
-                                    placeholder="dd/mm/aaaa"
+                                    placeholder="Selecione a data"
                                     outputFormat="iso"
-                                    className="w-full"
                                   />
                                 </div>
                                 

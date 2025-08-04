@@ -64,8 +64,15 @@ const Clients: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.email || !formData.phoneNumber) {
+    if (!formData.name || !formData.email) {
       showError('Por favor, preencha todos os campos obrigatórios.');
+      return;
+    }
+
+    // Validação básica de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      showError('Por favor, insira um email válido.');
       return;
     }
 
@@ -85,9 +92,15 @@ const Clients: React.FC = () => {
       setEditingClient(null);
       resetForm();
       fetchClients();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar cliente:', error);
-      showError('Erro ao salvar cliente. Tente novamente.');
+      
+      // Verificar se é um erro de email duplicado
+      if (error.response?.data?.message?.includes('Já existe um cliente com o email')) {
+        showError(error.response.data.message);
+      } else {
+        showError('Erro ao salvar cliente. Tente novamente.');
+      }
     }
   };
 
@@ -103,7 +116,7 @@ const Clients: React.FC = () => {
       companyId: client.companyId,
       name: client.name,
       email: client.email,
-      phoneNumber: client.phoneNumber
+      phoneNumber: client.phoneNumber || ''
     });
     setShowForm(true);
   };
@@ -344,13 +357,12 @@ const Clients: React.FC = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">Telefone *</Label>
+                  <Label htmlFor="phoneNumber">Telefone</Label>
                   <Input
                     id="phoneNumber"
                     value={formData.phoneNumber}
                     onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
-                    placeholder="Digite o telefone do cliente"
-                    required
+                    placeholder="Digite o telefone do cliente (opcional)"
                   />
                 </div>
 

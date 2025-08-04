@@ -5,7 +5,8 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { CurrencyInput } from './ui/currency-input';
-import { DateInput } from './ui/date-input';
+
+import { DatePicker } from './ui/date-picker';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { ArrowLeft, User, Mail, Phone, MapPin, DollarSign, Plus, Trash2, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
@@ -34,6 +35,7 @@ const ClientDetail: React.FC = () => {
     amount: number;
     dueDate: string;
   }>>([]);
+
   const [serviceFormData, setServiceFormData] = useState<CreateServiceData>({
     companyId: '',
     clientId: '',
@@ -108,6 +110,13 @@ const ClientDetail: React.FC = () => {
     }
   }, [serviceFormData.firstPaymentDate, serviceFormData.amount, serviceFormData.installments, customInstallments]);
 
+  // Sincronizar número de parcelas quando parcelas personalizadas mudarem
+  useEffect(() => {
+    if (customInstallments) {
+      setServiceFormData(prev => ({ ...prev, installments: installmentsData.length }));
+    }
+  }, [installmentsData.length, customInstallments]);
+
   const fetchClientServices = async () => {
     try {
       const servicesResponse = await authService.getServices();
@@ -115,30 +124,32 @@ const ClientDetail: React.FC = () => {
       const clientServices = allServices.filter(service => service.clientId === clientId);
       setClientServices(clientServices);
       
-      // Buscar parcelas apenas do ano atual
-      await fetchServiceInstallmentsByYear(new Date().getFullYear());
+      // Buscar todas as parcelas dos serviços do cliente
+      await fetchClientServiceInstallments(clientServices);
     } catch (error) {
       console.error('Erro ao buscar serviços do cliente:', error);
       setClientServices([]);
     }
   };
 
-  const fetchServiceInstallmentsByYear = async (year: number) => {
+  const fetchClientServiceInstallments = async (services: Service[]) => {
     try {
-      const response = await authService.getServiceInstallmentsByYear(year);
-      // Organizar parcelas por serviceId para manter compatibilidade
       const installmentsByService: { [serviceId: string]: ServiceInstallment[] } = {};
       
-      response.installments.forEach(installment => {
-        if (!installmentsByService[installment.serviceId]) {
-          installmentsByService[installment.serviceId] = [];
+      // Buscar parcelas para cada serviço do cliente
+      for (const service of services) {
+        try {
+          const response = await authService.getServiceInstallments(service.id!);
+          installmentsByService[service.id!] = response.installments || [];
+        } catch (error) {
+          console.error(`Erro ao buscar parcelas do serviço ${service.id}:`, error);
+          installmentsByService[service.id!] = [];
         }
-        installmentsByService[installment.serviceId].push(installment);
-      });
+      }
       
       setServiceInstallments(installmentsByService);
     } catch (error) {
-      console.error('Erro ao buscar parcelas do ano:', error);
+      console.error('Erro ao buscar parcelas dos serviços do cliente:', error);
       setServiceInstallments({});
     }
   };
@@ -247,6 +258,8 @@ const ClientDetail: React.FC = () => {
       dueDate: ''
     };
     setInstallmentsData([...installmentsData, newInstallment]);
+    // Atualizar o número de parcelas no serviceFormData
+    setServiceFormData(prev => ({ ...prev, installments: installmentsData.length + 2 }));
   };
 
   const removeInstallment = (index: number) => {
@@ -257,6 +270,8 @@ const ClientDetail: React.FC = () => {
       installmentNumber: i + 1
     }));
     setInstallmentsData(renumberedInstallments);
+    // Atualizar o número de parcelas no serviceFormData
+    setServiceFormData(prev => ({ ...prev, installments: renumberedInstallments.length }));
   };
 
   const validateInstallments = () => {
@@ -363,7 +378,7 @@ const ClientDetail: React.FC = () => {
           <div className="text-center py-8">
             <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Cliente não encontrado</h3>
-            <Button onClick={handleBack}>
+            <Button type="button" onClick={handleBack}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar para Clientes
             </Button>
@@ -415,7 +430,9 @@ const ClientDetail: React.FC = () => {
                 <Phone className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="text-sm font-medium">Telefone</p>
-                  <p className="text-sm text-muted-foreground">{client.phoneNumber}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {client.phoneNumber || 'Não informado'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -472,7 +489,7 @@ const ClientDetail: React.FC = () => {
                 <MapPin className="h-5 w-5 mr-2" />
                 Serviços Contratados
               </div>
-              <Button onClick={() => setShowServiceForm(true)}>
+                              <Button type="button" onClick={() => setShowServiceForm(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Novo Serviço
               </Button>
@@ -681,28 +698,24 @@ const ClientDetail: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstPaymentDate">Data do Primeiro Pagamento *</Label>
-                    <DateInput
-                      id="firstPaymentDate"
+                    <DatePicker
                       value={serviceFormData.firstPaymentDate}
                       onChange={(value) => setServiceFormData(prev => ({ ...prev, firstPaymentDate: value }))}
-                      placeholder="dd/mm/aaaa"
+                      placeholder="Selecione a data"
                       outputFormat="iso"
-                      required
                     />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="serviceDate">Data do Serviço *</Label>
-                    <DateInput
-                      id="serviceDate"
+                    <DatePicker
                       value={serviceFormData.serviceDate}
                       onChange={(value) => setServiceFormData(prev => ({ ...prev, serviceDate: value }))}
-                      placeholder="dd/mm/aaaa"
+                      placeholder="Selecione a data"
                       outputFormat="iso"
-                      required
                     />
                   </div>
 
@@ -775,12 +788,11 @@ const ClientDetail: React.FC = () => {
                               
                               <div className="flex-1">
                                 <Label className="text-xs text-muted-foreground">Data de Vencimento</Label>
-                                <DateInput
+                                <DatePicker
                                   value={installment.dueDate}
                                   onChange={(value) => updateInstallment(index, 'dueDate', value)}
-                                  placeholder="dd/mm/aaaa"
+                                  placeholder="Selecione a data"
                                   outputFormat="iso"
-                                  className="w-full"
                                 />
                               </div>
                               
@@ -877,10 +889,10 @@ const ClientDetail: React.FC = () => {
                 Você tem certeza que deseja marcar a parcela de R$ {formatCurrency(installmentToMark.amount)} como paga?
               </p>
               <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={handleCancelMarkAsPaid}>
+                <Button type="button" variant="outline" onClick={handleCancelMarkAsPaid}>
                   Cancelar
                 </Button>
-                <Button onClick={handleConfirmMarkAsPaid} className="bg-green-600 hover:bg-green-700">
+                <Button type="button" onClick={handleConfirmMarkAsPaid} className="bg-green-600 hover:bg-green-700">
                   Confirmar
                 </Button>
               </div>
