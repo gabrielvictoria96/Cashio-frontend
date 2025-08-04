@@ -13,6 +13,10 @@ import Services from './components/Services';
 import Agenda from './components/Agenda';
 import CompanyCheck from './components/CompanyCheck';
 
+// Debug: Verificar se a aplicação está carregando
+console.log('🚀 Cashio App iniciando...');
+console.log('🌐 API URL:', process.env.REACT_APP_API_URL);
+
 // Componente para rotas protegidas
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -56,6 +60,17 @@ const App: React.FC = () => {
     <AuthProvider>
       <Router>
         <Routes>
+          {/* Rota de teste */}
+          <Route
+            path="/test"
+            element={
+              <div style={{ padding: '20px', textAlign: 'center' }}>
+                <h1>🚀 Cashio App - Teste</h1>
+                <p>API URL: {process.env.REACT_APP_API_URL}</p>
+                <p>Status: Funcionando!</p>
+              </div>
+            }
+          />
           <Route
             path="/login"
             element={

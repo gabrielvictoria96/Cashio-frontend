@@ -11,7 +11,6 @@ export interface CurrencyInputProps
 const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
   ({ className, value, onChange, placeholder = "0,00", ...props }, ref) => {
     const [displayValue, setDisplayValue] = React.useState<string>('');
-    const [isEditing, setIsEditing] = React.useState(false);
 
     const formatCurrency = (amount: number): string => {
       return new Intl.NumberFormat('pt-BR', {
@@ -72,7 +71,6 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
     };
 
     const handleFocus = () => {
-      setIsEditing(true);
       // Mostra o valor formatado quando foca
       if (value > 0) {
         setDisplayValue(formatCurrency(value / 100));
@@ -80,7 +78,6 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
     };
 
     const handleBlur = () => {
-      setIsEditing(false);
       // Garante que o valor final está formatado
       if (value > 0) {
         setDisplayValue(formatCurrency(value / 100));

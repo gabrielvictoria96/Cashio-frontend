@@ -18,6 +18,7 @@ import { showError, showSuccess } from '../utils/notifications';
 import ConfirmDialog from './ui/confirm-dialog';
 
 const Services: React.FC = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { user } = useAuth();
   const navigate = useNavigate();
   const [services, setServices] = useState<Service[]>([]);

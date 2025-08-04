@@ -71,6 +71,7 @@ const Agenda: React.FC = () => {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const markInstallmentAsPaid = async (installmentId: string) => {
     try {
       await authService.markInstallmentAsPaid(installmentId);
