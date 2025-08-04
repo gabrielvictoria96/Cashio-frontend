@@ -4,9 +4,9 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { ArrowLeft, DollarSign, TrendingUp, Users, Calendar, Check, Clock, AlertTriangle, Filter } from 'lucide-react';
+import { ArrowLeft, DollarSign, TrendingUp, Calendar, Check, Clock, AlertTriangle } from 'lucide-react';
 import Layout from './Layout';
-import { authService, type ServiceInstallment, type Client, type Company, type Service } from '../services/api';
+import { authService, type ServiceInstallment, type Client, type Service } from '../services/api';
 import { formatCurrency } from '../utils/currency';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { showError } from '../utils/notifications';
@@ -37,7 +37,6 @@ const Dashboard: React.FC = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [installmentToMark, setInstallmentToMark] = useState<ServiceInstallment | null>(null);
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<'all' | 'paid' | 'pending' | 'overdue'>('all');
-  const [maxPaymentsHeight, setMaxPaymentsHeight] = useState('max-h-96'); // Altura máxima aumentada para ~8-10 pagamentos
 
   useEffect(() => {
     fetchData();
@@ -259,8 +258,10 @@ const Dashboard: React.FC = () => {
     };
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const totalRevenue = services.reduce((sum, service) => sum + service.amount, 0);
   const allInstallments = Object.values(installments).flat();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const totalPaid = allInstallments.filter(installment => installment.paidAt).reduce((sum, installment) => sum + installment.amount, 0);
 
   const selectedMonthData = getSelectedMonthData();
@@ -622,7 +623,7 @@ const Dashboard: React.FC = () => {
                   </p>
                 </div>
               ) : (
-                <div className={`space-y-3 overflow-y-auto ${maxPaymentsHeight}`} style={{ scrollbarWidth: 'thin', msOverflowStyle: 'none' }}>
+                <div className="space-y-3 overflow-y-auto max-h-96" style={{ scrollbarWidth: 'thin', msOverflowStyle: 'none' }}>
                   {selectedMonthData.installments.map((installment) => {
                     const status = getPaymentStatus(installment);
                     
