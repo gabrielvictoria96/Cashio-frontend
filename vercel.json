@@ -16,6 +16,6 @@
     }
   ],
   "env": {
-    "REACT_APP_API_URL": "https://notificai-backend.railway.app"
+    "REACT_APP_API_URL": "https://cashio-backend.railway.app"
   }
 } 
